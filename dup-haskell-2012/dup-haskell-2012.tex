@@ -3,11 +3,12 @@
 
 \usepackage[utf8]{inputenc}
 \usepackage{etex}
-\usepackage{amsmath}
 \usepackage{stmaryrd}
-\usepackage[standard,amsmath]{ntheorem}
+\usepackage{amsmath}
 \usepackage{amsfonts}
+\usepackage{amssymb}
 \usepackage{mathtools}
+\usepackage[amsmath,thmmarks]{ntheorem}
 %\usepackage{algorithm2e}
 \usepackage{tikz}
 \usepackage{wrapfig}
@@ -16,6 +17,7 @@
 \usepackage{microtype}
 \usepackage{booktabs}
 \usepackage{mathpartir}
+\newcommand\pfun{\mathrel{\ooalign{\hfil$\mapstochar\mkern5mu$\hfil\cr$\to$\cr}}}
 
 \usepackage{hyperref}
 
@@ -34,6 +36,15 @@
    {\kern-.0em\mathchar47\kern-.08em\penalty\UrlBigBreakPenalty}}
 \def\Url@underscore{\nfss@text{\leavevmode \kern.06em\vbox{\hrule\@width.3em}}}
 \makeatother
+
+\theorembodyfont{}
+\newtheorem{theorem}{Theorem}
+\newtheorem{lemma}[theorem]{Lemma}
+\theoremstyle{nonumberplain}
+\theoremheaderfont{\scshape}
+\theoremsymbol{\ensuremath{\blacksquare}}
+\theoremseparator{.}
+\newtheorem{proof}{Proof}
 
 \usepackage{listings}
 \newcommand{\li}{\lstinline[style=Haskell]}
@@ -78,23 +89,29 @@
 \copyrightyear{2012} 
 \copyrightdata{Joachim Breitner}
 
+\titlebanner{---Work in Progress---}
+\preprintfooter{Joachim Breitner: dup -- Explicit un-sharing in Haskell}
 \title{dup -- Explicit un-sharing in Haskell}
 %\subtitle
 
-\authorinfo{Joachim Breitner}{Karlsruhe Institute for Technology}{breitner@kit.edu}
-
+\authorinfo{Joachim Breitner}{Karlsruhe Institute of Technology}{breitner@kit.edu}
 
 
 \begin{document}
 \maketitle
-
 % \allowdisplaybreaks[1]
 
 \begin{abstract}
-We propose two operations to prevent sharing in Haskell and demonstrate their use and usefulness.
+We propose two operations to prevent sharing in Haskell without requiring modification to the data generating code and demonstrate their use and usefulness, and compare them to other approaches to prevent sharing. Our claims are supported by a formal semantics and a prototype implementation.
 \end{abstract}
 
 %\tableofcontents
+
+\category{D}{1}{2}
+\category{D}{3}{3}
+\category{E}{2}{}
+
+\keywords Space Leak, Lazy Evaluation, Sharing, Functional Programming, Natural Semantics
 
 
 \section{Introduction}
@@ -108,7 +125,7 @@ let f :: [Int] -> Int
     l = [1..100000000]
 in  f l
 \end{haskell}
-This program will quickly run out of memory. Substituting the term for \li-xs- in the body of \lstinline-f- and evaluating that runs quickly and in constant memory. We have avoided the sharing of \lstinline-xs- between the calls to \lstinline-last- and \lstinline-head- and the list elements can be garbage collected as soon as it has been consumed by \lstinline-last-.
+This program is space-leaky and will quickly run out of memory. Substituting the term for \li-xs- in the body of \lstinline-f- and evaluating that runs quickly and in constant memory. We have avoided the sharing of \lstinline-xs- between the calls to \lstinline-last- and \lstinline-head- and the list elements can be garbage collected as soon as it has been consumed by \lstinline-last-.
 
 But this source transformation, as well as other source transformations to avoid sharing (see Section \ref{sec:sourcetrans}) is not always possible or desirable, e.g.\  when the parameter passed to \li-f- comes from library code not under the control of the programmer. For this case, we propose a new primitive operation \lstinline-dup- which copies a (possibly unevaluated) value on the heap.
 \begin{haskell}
@@ -155,10 +172,10 @@ tree :: S -> Tree
 tree s = Node s (map tree (succs s))
 depth :: Int
 solve :: Tree -> [S]
-solve (Node n ts) = n : solve pickedChild
+solve (Node n ts) = n : solve picked
   where
-  ratedChilds = [ (t, rate depth t) | t <- ts ]
-  pickedChild = fst (maximumBy (comparing snd) ratedChilds)
+  rated = [ (t, rate depth t) | t <- ts ]
+  picked = fst (maximumBy (comparing snd) rated)
 rate :: Tree -> Integer
 rate 0 (Node s _) = value s
 rate d (Node _ ts) = maximum (map (rate (d-1)) ts)
@@ -221,7 +238,7 @@ Now we achieve the performance of a successful run with \li-dup- (\ref{stats:Sol
 Using \li-deepDup- is therefore more reliable and easier to handle: The programmer does not have to have an exact idea of the evaluation state of the arguments when \li-deepDup- is called. And the recursive copying is surprisingly cheap: Even when the tree is already fully evaluated, e.g. by an earlier call to \li-solve t !! 10000-, the run-time stays the same within the precision of the benchmark.
 %\footnote{In fact, it is reliably reduced by about one percent; the reason is not yet clear to us.}
 
-Figure \ref{fig:stats} collects these statistics for the original and the modified code, each applied to an otherwise unreferenced tree first and then to a tree with a live reference, either unevaluated, unevaluated and wrapped in another thunk, partly evaluated and fully evaluated.
+Figure \ref{fig:stats} collects these statistics for the original and the modified code, each applied to an otherwise unreferenced tree first and then to a tree with a live reference, either unevaluated, wrapped in another thunk, partly evaluated and fully evaluated.
 
 \section{Other approaches to unsharing}
 \label{sec:sourcetrans}
@@ -243,7 +260,7 @@ main = do
 works as expected without optimization. Passing  \ci!-O! to GHC results in sharing again as a result of the full laziness transformation. In fact, in a discussion of this example on the GHC bug tracker \citep{spaceleakbug}, Claus Reinke suggests an operation like \li-dup- to solve this.
 % http://hackage.haskell.org/trac/ghc/ticket/917
 
-If, however, the type signature of \li-xs- is not given, then no unwanted sharing happens even with \ci!-O!. The infered, most general type of \li-xs- is polymorphic with type class constraints. This implies that additional parameters being passed under the hood, these successfully prevent sharing.
+If, however, the type signature of \li-xs- is not given, then no unwanted sharing happens even with \ci!-O!. The inferred, most general type of \li-xs- is polymorphic with type class constraints. This implies that additional parameters being passed under the hood, these successfully prevent sharing.
 
 Applying this pattern to our problem, and aiming for a tree with unshareable leaves, we can define the following types:
 \begin{haskell}
@@ -287,9 +304,9 @@ This additional complexity might make this approach impractical in larger settin
 
 To substantiate our claims about the usefulness of \li-dup- and especially \li-deepDup-, we give them a precise meaning in within Launchbury’s Natural Semantics for Lazy Evaluation \citep{launchbury} and prove that all memory allocated by a function whose arguments are wrapped with \li-deepDup- can be freed after the function has been evaluated completely.
 
-We extend Launchbury’s semantic for normalised lambda calculus with our two primitives:
-\newcommand{\mdup}{\text{dup}}
-\newcommand{\mdeepDup}{\text{deepDup}}
+We extend Launchbury’s semantics for normalized lambda calculus with our two primitives:
+\newcommand{\mdup}{\text{\textsf{dup}}}
+\newcommand{\mdeepDup}{\text{\textsf{deepDup}}}
 \newcommand{\sVar}{\text{Var}}
 \newcommand{\sExp}{\text{Exp}}
 \newcommand{\sHeap}{\text{Heap}}
@@ -297,10 +314,13 @@ We extend Launchbury’s semantic for normalised lambda calculus with our two pr
 \newcommand{\sApp}[2]{#1\ #2}
 \newcommand{\sDup}[1]{\sApp \mdup #1}
 \newcommand{\sDeepDup}[1]{\sApp \mdeepDup #1}
-\newcommand{\sLet}[2]{\text{let}\ #1\ \text{in}\ #2}
+\newcommand{\sLet}[2]{\text{\textsf{let}}\ #1\ \text{\textsf{in}}\ #2}
 \newcommand{\sred}[4]{#1 : #2 \Downarrow #3 : #4}
-\newcommand{\sRule}[1]{\text{\textsf{\textsc{#1}}}}
+\newcommand{\sRule}[1]{\text{{\textsc{#1}}}}
 \newcommand{\fv}[1]{\text{fv}(#1)}
+\newcommand{\ufv}[1]{\text{ufv}(#1)}
+\newcommand{\ur}[2]{\text{ur}_{#1}(#2)}
+\newcommand{\dom}[1]{\text{dom}\,#1}
 \begin{alignat*}{2}
 x,y &\in \sVar \\
 e &\in
@@ -314,13 +334,16 @@ e &\in
 \\&
 \sDup e \mid \sDeepDup e
 \end{aligned}\\
-\Gamma, \Delta, \Theta &\in \sHeap &&= \sVar \mapsto \sExp \\
+\Gamma, \Delta, \Theta &\in \sHeap &&= \sVar \pfun \sExp \\
 z &\in \sVal &&\Coloneqq \lambda x . e
 \end{alignat*}
 
-In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{DeepDup}, where $\fv e$ is the set of free variables of $e$.
+In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}, where $\fv e$ is the set of free variables of $e$ and $\cap z$ is $z$ with all bound variables renamed to completely fresh variables.
+
+\begin{figure}
 \[
-\begin{array}{cl}
+\allowdisplaybreaks[3]
+\begin{array}{@{}c@{}l@{}}
 \inferrule
 {}
 {\sred{\Gamma}{\lambda x.e}{\Gamma}{\lambda x.e}}
@@ -328,7 +351,7 @@ In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{V
 \\\\
 \inferrule
 {\sred{\Gamma}e{\Delta}{\lambda y . e'}\\ \sred{\Delta}{e'[x/y]}{\Theta}{z}}
-{\sred\Gamma{e x}\Theta z}
+{\sred\Gamma{\sApp e x}\Theta z}
 & \sRule{App}
 \\\\
 \inferrule
@@ -338,33 +361,39 @@ In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{V
 \\\\
 \inferrule
 {\sred{\Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n} e \Delta z}
-{\sred{\Gamma}{\sLet{x_1 = e_1,\ldots, x_n = e_n}e} x \Delta z}
+{\sred{\Gamma}{\sLet{x_1 = e_1,\ldots, x_n = e_n}e} \Delta z}
 & \sRule{Let}
 \\\\
 \inferrule
-{\sred{\Gamma,x\mapsto e, x'\mapsto e} {x'} \Delta z}
+{\sred{\Gamma,x\mapsto e, \bar x\mapsto e} {\bar x} \Delta z}
 {\sred{\Gamma,x\mapsto e}{\sDup x} \Delta z}
 & \sRule{Dup}
 \\\\
 \inferrule
-{\sred{
+{
+{\begin{gathered}
+\sred{
 \Gamma,
-{\begin{aligned}[b]
-&x\mapsto e,\\
-&y_i' \mapsto \sDeepDup y_i\\
-&x'\mapsto [y_i'/y_i]e,
-\end{aligned}}
-} {x'} \Delta z \\ \{y_i\}_i = \fv e}
+x\mapsto e,
+\bar x\mapsto e[\bar y_i/y_i],
+\bar y_i \mapsto \sDeepDup y_i
+} {\bar x} \Delta z \\ \{y_i\}_i = \fv e
+\end{gathered}}
+}
 {\sred{\Gamma,x\mapsto e}{\sDeepDup x} \Delta z}
-& \sRule{DeepDup}
+& \sRule{Deep}
 \end{array}
 \]
+\caption{Natural semantics extended for \li-dup- and \li-deepDup-}
+\label{fig:semrules}
+\end{figure}
 
 \newcommand{\dsem}[2]{\llbracket #1 \rrbracket_{#2}}
 \newcommand{\esem}[1]{\{\!\!\{#1\}\!\!\}}
+\newcommand{\case}[1]{\par\noindent\textbf{Case:} #1\par}
 TODO: Copy all denotational semantics definitions from Launchbury?
 
-Launchbury defines a denotational semantics and proves his natural semantics to be correct with respect to the denotational semantics. Naturally we want to preserve this property. Our new primitives should be invisible to the denotational semantics, hence we extend the semantics function:
+Launchbury also defines a denotational semantics and proves his natural semantics to be correct with respect to the denotational semantics. Naturally we want to preserve this property. Our new primitives should be invisible to the denotational semantics, hence we extend the semantics function:
 \begin{align*}
 \dsem{\sDup x}\rho = \dsem{\sDeepDup x}\rho = \dsem{x}\rho.
 \end{align*}
@@ -378,11 +407,10 @@ If $\sred\Gamma e \Delta z$ then for all environments $\rho$,
 \]
 \end{theorem}
 \begin{proof}
-The proof is by induction on the deriviation, the two additional cases are:
+The proof is by induction on the derivation, the two additional cases are:
 
-\noindent\textbf{Case:} $\sDup x$
-
-By induction, we know (i) $\dsem{x'}{\esem{\Gamma, x \mapsto e, x' \mapsto e} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma, x \mapsto e, x' \mapsto e} \rho \le \esem \Delta \rho$.
+\case{$\sDup x$}
+By induction, we know (i) $\dsem{\bar x}{\esem{\Gamma, x \mapsto e, \bar x \mapsto e} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma, x \mapsto e, \bar x \mapsto e} \rho \le \esem \Delta \rho$.
 
 For the first part, we have 
 \begin{align*}
@@ -390,40 +418,39 @@ For the first part, we have
 &= \dsem{x}{\esem{\Gamma, x\mapsto e}\rho}\\
 %&= \esem{\Gamma, x\mapsto e}\rho\ x\\
 &= \dsem{e}{\esem{\Gamma, x\mapsto e}}\\
-&= \dsem{e}{\esem{\Gamma, x\mapsto e, x' \mapsto e}} && \text{($x'$ fresh)}\\
-%&= \esem{\Gamma, x\mapsto e, x' \mapsto e}\rho\ x' \\
-&= \dsem{x'}{\esem{\Gamma, x\mapsto e, x' \mapsto e}\rho} \\
+&= \dsem{e}{\esem{\Gamma, x\mapsto e, \bar x \mapsto e}} && \text{($\bar x$ fresh)}\\
+%&= \esem{\Gamma, x\mapsto e, \bar x \mapsto e}\rho\ \bar x \\
+&= \dsem{\bar x}{\esem{\Gamma, x\mapsto e, \bar x \mapsto e}\rho} \\
 &= \dsem{z}{\esem \Delta \rho} &&\text{(by (i))}
 \end{align*}
 as desired.
 
-The second part follows from (ii) and that $x'$ is fresh:
+The second part follows from (ii) and that $\bar x$ is fresh:
 \begin{align*}
-\esem{\Gamma, x\mapsto e}\rho \le \esem{\Gamma, x\mapsto e, x'\mapsto e} \rho \le \esem{\Delta}\rho
+\esem{\Gamma, x\mapsto e}\rho \le \esem{\Gamma, x\mapsto e, \bar x\mapsto e} \rho \le \esem{\Delta}\rho
 \end{align*}
 
-\noindent\textbf{Case:} $\sDeepDup x$
+\case{$\sDeepDup x$}
+Let \mbox{$\Gamma' = \Gamma, x\mapsto e, \bar x\mapsto e[\bar y_i/y_i], \bar y_i \mapsto \sDeepDup {y_i}$}.
+By induction, we know (i) $\dsem{\bar x}{\esem{\Gamma'} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma'} \rho \le \esem \Delta \rho$.
 
-Let \mbox{$\Gamma' = \Gamma, x\mapsto e, x'\mapsto [y_i'/y_i]e, y_i' \mapsto \sDeepDup {y_i}$}.
-By induction, we know (i) $\dsem{x'}{\esem{\Gamma'} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma'} \rho \le \esem \Delta \rho$.
-
-The newly introduced variables $y_i'$ have the same semantics as their original counterparts:
-\begin{multline*}
-\dsem{y'}{\esem{\Gamma'}\rho}
-%= \esem{\Gamma'}\rho\ y
-= \dsem{\sDeepDup y}{\esem{\Gamma'}\rho}
+The newly introduced variables $\bar y_i$ have the same semantics as their original counterparts:
+\[
+\dsem{\bar y_i}{\esem{\Gamma'}\rho}
+%= \esem{\Gamma'}\rho\ y_i
+= \dsem{\sDeepDup {y_i}}{\esem{\Gamma'}\rho}
 %\\
-= \dsem{y}{\esem{\Gamma'}\rho}
-%= \esem{\Gamma'}\rho\ y = \esem{\Gamma, x\mapsto e}\rho\ y
-= \dsem{y}{\esem{\Gamma, x\mapsto e}\rho}.
-\end{multline*}
-This implies (iii) $\dsem{[y_i'/y_i]e}{\esem{\Gamma, x\mapsto e}\rho} = \dsem{e}{\esem{\Gamma'}\rho}$. Hence
+= \dsem{y_i}{\esem{\Gamma'}\rho}
+%= \esem{\Gamma'}\rho\ y_i = \esem{\Gamma, x\mapsto e}\rho\ y_i
+= \dsem{y_i}{\esem{\Gamma, x\mapsto e}\rho}.
+\]
+This implies (iii) $\dsem{e[\bar y_i/y_i]}{\esem{\Gamma, x\mapsto e}\rho} = \dsem{e}{\esem{\Gamma'}\rho}$. Hence
 \begin{align*}
 &\phantom{{}={}}\dsem{\sDeepDup x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{e}{\esem{\Gamma, x\mapsto e}\rho} &&\text{(by (iii))}\\
-&= \dsem{[y_i'/y_i]e}{\esem{\Gamma'}\rho}\\
-&= \dsem{x'}{\esem{\Gamma'}\rho}\\
+&= \dsem{e[\bar y_i/y_i]}{\esem{\Gamma'}\rho}\\
+&= \dsem{\bar x}{\esem{\Gamma'}\rho}\\
 &= \dsem{z}{\esem \Delta \rho} &&\text{(by (i))}
 \end{align*}
 and
@@ -438,12 +465,80 @@ Consider the expression
 \[
 e=\sLet{x_1' = \sDeepDup x_1,\ldots,x_n'= \sDeepDup x_n} e'
 \]
-with $\fv{e'} \subset \{x_1',\ldots,x_n'\}$. If $\sred \Gamma e \Delta z$ and $z$ is a closed value ($\fv{z} = \emptyset$), then $\Gamma \le \Delta$.
+with $\fv{e'} \subseteq \{x_1',\ldots,x_n'\}$. If $\sred \Gamma e \Delta z$ and $z$ is a closed value (i.e.\ $\fv{z} = \emptyset$), then $\Gamma \subseteq \Delta$.
 \label{thm:deepdup}
 \end{theorem}
 This implies that any value on the heap $\Delta$ that was created during the evaluation of $e$ can be freed afterwards.
 
-The theorem is an immediate consequence of the following lemma. TODO.
+The theorem is an immediate consequence of the following lemma, with $\Gamma_0 = \Gamma$, for which we need to define two auxillary notions:
+\begin{itemize}
+\item 
+The set of unguarded free variables $\ufv e$ of an expression $e$ has the same inductive definition as $\fv e$ with the exception that $\ufv {\sDeepDup x} = \emptyset$. 
+\item The unguarded reachable set $\ur{\Gamma}{e}$ of an expression $e$ in a context $\Gamma$, which is defined as a least fixedpoint:
+\[
+\ur{\Gamma}{e} \coloneqq \mu V. V \cup \ufv e \cup \bigcup_{x\in \ufv e}\ur{\Gamma}{x}.
+\]
+Note that $\ufv e \subseteq \ufv {e'}$ implies $\ur\Gamma e \subseteq \ur\Gamma {e'}$.
+\end{itemize}
+
+\begin{lemma}
+Let $\Gamma_0$ be a heap and $U= \dom\Gamma_0$ its domain. If $\sred\Gamma e \Delta z$, $\Gamma_0 \subseteq \Gamma$ and $U \cap \ur \Gamma e = \emptyset$ then $\Gamma_0 \subseteq \Delta$ and  $U \cap \ur \Delta z=\emptyset$.
+\label{lem:deepdup}
+\end{lemma}
+\begin{proof}
+The proof is by induction on the structure of the derivation $\sred\Gamma e \Delta z$.
+\case{$\lambda x.e$}
+Immediate.
+\case{$\sApp e x$}
+From $\ufv{\sApp e x} = \ufv{e} \cup \{x\}$ and $U \cap \ur\Gamma{\sApp e x}$ we have $x\notin U$ and $U \cap \ur\Gamma e = \emptyset$. From the left inductive case we obtain $\Gamma_0 \subseteq \Delta$ and (i) $U \cap \ur\Gamma {\lambda y. e'}= \emptyset$.
+
+From $\ufv{e'[x/y]} \subseteq (\ufv{e'}\setminus \{y\}) \cup \{x\} = \ufv{\lambda y.e'} \cup \{x\}$, (i) and $x\notin U$ we have $U \cap \ur\Gamma{e'[x/y]} = \emptyset$. With $\Gamma_0 \subseteq \Delta$ the statement follows from the right inductive case.
+\case{$x$}
+As $x \in \ur{\Gamma,x \mapsto e} x$ and removing a variable from a heap does not increase unreachable sets, $\ur\Gamma e \subseteq \ur{\Gamma, x\mapsto e}e \subseteq \ur{\Gamma,x\mapsto e} x$. Furthermore, $x \notin U$, so $\Gamma_0 \subseteq \Gamma$ and we can invoke the inductive case and obtain $\Gamma_0 \subseteq \Delta$ and $U \cap \ur\Delta z = \emptyset$. As $\Delta \subseteq \Delta, x \mapsto z$, $\ufv{z} = \ufv{\hat z}$ and $\ur \Delta z = \ur {\Delta, x \mapsto z} {\hat z}$, the statement follows.
+\case{$\sLet {x_1=e_1,\ldots,x_n=e_n}e$}
+For brevity, let $\Gamma' = \Gamma \subseteq \Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n$ and $l = \sLet {x_1=e_1,\ldots,x_n=e_n}e$.
+Clearly $\Gamma_0 \subseteq \Gamma \subseteq \Gamma'$.
+Also, for each $e_* \in \{e,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \ufv{l} \cup \{x_1,\ldots,x_n\}$. This implies 
+\begin{align*}
+\ur{\Gamma'}e
+&= \mu V. V \cup \ufv e \cup \textstyle\bigcup_{x\in \ufv e}\ur{\Gamma'}{\Gamma' x} \\
+&\subseteq \mu V. V
+\begin{aligned}[t]
+&\cup \ufv l \cup \{x_1,\ldots,x_n\} \cup \textstyle\bigcup_{x\in \ufv l}\ur{\Gamma'}{\Gamma' x} \\
+&\cup \ur{\Gamma'}{\Gamma' x_1} \cup \ldots \cup \ur{\Gamma'}{\Gamma' x_n}
+\end{aligned}\\
+&\subseteq \mu V. V
+\begin{aligned}[t]
+&\cup \ufv l \cup \{x_1,\ldots,x_n\} \cup \textstyle\bigcup_{x\in \ufv l}\ur{\Gamma'}{\Gamma' x} \\
+&\cup \ur{\Gamma'}{e_1} \cup \ldots \cup \ur{\Gamma'}{e_n}
+\end{aligned}\\
+&= \mu V. V \cup \ufv l \cup \{x_1,\ldots,x_n\} \cup \textstyle\bigcup_{x\in \ufv l}\ur{\Gamma'}{\Gamma' x}\\
+&= \ur{\Gamma'} l \cup \{x_1,\ldots,x_n\}\\
+&= \ur{\Gamma} l \cup \{x_1,\ldots,x_n\}
+\end{align*}
+As all bound variables are distinct, no $x_i\in U$ and from $U\cap \ur\Gamma l
+= \emptyset$ we have $U \cap \ur {\Gamma'} e = \emptyset$ and the statement
+follows from the inductive case.
+\case{$\sDup x$}
+Clearly $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma, x\mapsto e, \bar x \mapsto e$. Also, $\ur{\Gamma,x\mapsto e, \bar x\mapsto e}{\bar x} = \ur{\Gamma, x\mapsto e}{x} \cup \{x\} = \ur{\Gamma, x\mapsto e}{x} \cup \{\sDup x\} $. As all bound variables are distinct, $\bar x\notin U$ and from $U \cap \ur{\Gamma, x\mapsto e}{\sDup x}= \emptyset$ we have $U \cap \ur{\Gamma,x\mapsto e, \bar x \mapsto e}{\sDup x}=\emptyset$, so the statement follows from the inductive case.
+\case{$\sDeepDup x$}
+Let $\Gamma' = \Gamma, x\mapsto e, \bar x\mapsto e[\bar y_i/y_i], \bar y_i \mapsto \sDeepDup y_i$.
+Recall that $\ufv {\sDeepDup x}=\emptyset$ and $\ufv{e} \subseteq \fv{e}$. So 
+\begin{align*}
+\ur{\Gamma'}{\bar x}
+&= \{\bar x\} \cup \ur{\Gamma'}{e[\bar y_i/y_i]} \\
+&= \{\bar x\} \cup \mu V. V
+\begin{aligned}[t]
+&\cup \ufv{e[\bar y_i / y_i}\\
+&\cup \textstyle\bigcup_{z \in \ufv{e[\bar y_i / y_i]}} \ur{\Gamma'}{\Gamma'(z)}
+\end{aligned}\\
+&\subseteq \{\bar x\} \cup \mu V. V \cup \{\bar y_i\} \cup \textstyle\bigcup_{i} \ur{\Gamma'}{\Gamma'(\bar y_i)} \\
+&= \{\bar x\} \cup \mu V. V \cup \{\bar y_i\} \cup \textstyle\bigcup_{i} \ur{\Gamma'}{\sDeepDup {y_i}}\\
+&= \{\bar x\} \cup \mu V. V \cup \{\bar y_i\}  \\
+&= \{\bar x\} \cup \{\bar y_i\}
+\end{align*}
+and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\bar x} = \emptyset$. Clearly, $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma'$, so the statement follows from the inductive case.
+\end{proof}
 
 \section{The prototype implementation}
 
@@ -487,7 +582,9 @@ There are various types of objects on the heap, most important are:
 
 When a thunk is evaluated, it is replaced by an indirection which points to the result of the evaluation, which can be a data constructor or a function closure. This way, when another reference to the thunk is evaluated, the computation is not repeated but the calculated result is used directly, hence the result is \emph{shared}. The indirections do not stay around forever: The next garbage collector run, which copies all live data, will replace references to indirections to whatever the indirection points to.
 
-If we want to avoid this sharing, we need to prevent the original reference to be replaced by the indirection. We cannot change to code of the thunk, but we can copy the thunk, thus creating a new copy that is not referenced by other code, and then evaluate that. (TODO: picture?) The essence of the surprisingly simple code is listed in Figure \ref{fig:dupcode}; the closure to duplicate is passed in the register \ci-R1- and \ci-Hp- is the heap pointer which is increased by \ci-ALLOC_PRIM-.
+If we want to avoid this sharing, we need to prevent the original reference to be replaced by the indirection. We cannot change to code of the thunk, but we can copy the thunk, thus creating a new copy that is not referenced by other code, and then evaluate that.
+%(TODO: picture?)
+The essence of the surprisingly simple code is listed in Figure \ref{fig:dupcode}; the closure to duplicate is passed in the register \ci-R1- and \ci-Hp- is the heap pointer which is increased by \ci-ALLOC_PRIM-.
 
 \begin{figure}
 \begin{cmm}
@@ -531,7 +628,8 @@ deepDupClosure {
     p = 0;
     for2:
     if(p < ptrs) {
-	ap = Hp - bytes + WDS(1) + p * SIZEOF_StgAP + WDS(p);
+	ap = Hp - bytes + WDS(1)
+	     + p * SIZEOF_StgAP + WDS(p);
         W_[ap] = stg_ap_2_upd_info;
         W_[ap + WDS(1)] = Dup_deepDupFun_closure;
 	W_[ap + WDS(2)] = W_[clos + WDS(p)];
@@ -553,7 +651,7 @@ deepDupClosure {
 
 Our implementation is but a prototype; it does not yet work in all situation. One large problem are statically allocated thunks: A value, say \li-nats = [0..]- defined at the module level is compiled to a thunk with closure type \ci-THUNK_STATIC-, also called a constant applicative form (CAF), and receives special treatment by the garbage collector. Copying such a closure to the heap using the code above would make the garbage collector abort, as it does not expect a static thunk to be found on the heap. But it is not possible to change the type of the closure, as the info table containing the type lies directly next to the code. And in order to create a modified info table somewhere else, the code needs to be copied as well. Therefore, \li-dup- currently does not work for static thunks. If it is passed such a thunk it will print a warning and return the original reference, retaining sharing.
 
-TODO: Discuss possible solutions here?
+%TODO: Discuss possible solutions here?
 
 Also, the prototype does not take multithreaded programs into account and will likely produce bad results when used in such an environment. Similarly, there are several specialized closure type (array, mutable references, weak pointers and others \citep[page HeapObjects]{commentary}). For each of them, we need to determine if they can be safely duplicated and if so, whether this is actually useful.
 

@@ -2,6 +2,7 @@
 
 import Data.Word
 import Data.List
+import Data.List.Split
 import Data.Bits
 import Data.Function
 import System.Environment
@@ -180,12 +181,14 @@ mainStats = do
             out <- readProcess "./PaperStats" [show run, show variant] ""
             let (_, _, alloc, time) = read out :: (String, Variant, Integer, Double)
             -- print (run, variant, alloc, time)
-            printf "& {\\def\\@currentlabel{%d}\\label{stats:%s:%s:mem}%d}" alloc (show run) (show variant) alloc
+            printf "& {\\def\\@currentlabel{%s}\\label{stats:%s:%s:mem}%s}" (showLargeNum alloc) (show run) (show variant) (showLargeNum alloc)
             printf " & {\\def\\@currentlabel{%.2f}\\label{stats:%s:%s:time}%.2f}" time (show run) (show variant) time
             return ()
         printf " \\\\\n"
     printf "\\end{tabular}\n"
     printf "\\makeatother\n"
+
+showLargeNum = intercalate "\\," . map reverse . reverse . splitEvery 3 . reverse . show 
 
 
 mainRun :: RunDesc -> Variant -> S -> IO ()
@@ -213,6 +216,7 @@ mainRun n variant k = do
                 SharedFull -> do
                     let t = gTree k
                     gEvalAll t
+                    performGC
                     gSolve t
                     gDosomethingwith t
     performGC
