@@ -1,0 +1,184 @@
+#include "Cmm.h"
+
+
+dupClosure
+{
+/* args: R1 = closure to analyze */
+
+    W_ clos;
+    clos = UNTAG(R1);
+
+//    W_ info;
+//    info = %GET_STD_INFO(clos);
+
+    W_ ha;
+    (ha) = foreign "C" dupHeapAlloced(clos "ptr") [];
+
+    if (ha > 0) {
+	W_ len;
+	(len) = foreign "C" dupClosureSize(clos "ptr") [];
+
+	W_ bytes;
+	bytes = WDS(len);
+
+	ALLOC_PRIM (bytes, R1_PTR, dupClosure);
+
+	W_ copy;
+	copy = Hp - bytes + WDS(1);
+
+	W_ p;
+	p = 0;
+    for:
+	if(p < len) {
+	     W_[copy + WDS(p)] = W_[clos + WDS(p)];
+	     p = p + 1;
+	     goto for;
+	}
+
+	RET_P(copy);
+    } else {
+	foreign "C" dupWarning(clos "ptr") [];
+	RET_P(clos);
+    }
+}
+
+deepDupClosure
+{
+/* args: R1 = closure to analyze */
+
+    W_ clos;
+    clos = UNTAG(R1);
+
+    //foreign "C" printObj(clos "ptr") [];
+
+    W_ info;
+    info = %GET_STD_INFO(clos);
+
+    W_ ha;
+    (ha) = foreign "C" dupHeapAlloced(clos "ptr") [];
+
+    if (ha > 0) {
+	W_ len;
+	(len) = foreign "C" dupClosureSize(clos "ptr") [];
+
+	W_ ptrs;
+	ptrs  = TO_W_(%INFO_PTRS(info));
+
+	W_ bytes;
+	// We need to copy the closure, plus for every pointer therein, make a
+	// thunk consisting of a header and the pointer
+	bytes = WDS(len) + ptrs * SIZEOF_StgAP + WDS (ptrs);
+
+	ALLOC_PRIM (bytes, R1_PTR, dupClosure);
+
+	W_ copy;
+	copy = Hp - WDS(len) + WDS(1);
+
+	W_ p;
+	p = 0;
+    for1:
+	if(p < len) {
+	     W_[copy + WDS(p)] = W_[clos + WDS(p)];
+	     p = p + 1;
+	     goto for1;
+	}
+	
+	W_ thunks;
+	thunks = Hp - bytes + WDS(1);
+
+	W_ payloadOffset;
+	payloadOffset = 0;
+
+	W_ type;
+	type = TO_W_(%INFO_TYPE(info));
+	switch [0 .. N_CLOSURE_TYPES] type {
+	    case THUNK, THUNK_1_0, THUNK_0_1, THUNK_1_1,
+		 THUNK_2_0, THUNK_0_2, THUNK_STATIC: {
+		payloadOffset = 1;
+		goto out;
+	    }
+	    default: {
+		goto out;
+	    }
+	}
+    out:
+
+	p = 0;
+    for2:
+	if(p < ptrs) {
+	    W_ ap;
+	    ap = thunks + p * SIZEOF_StgAP + WDS(p);
+	    //StgAP_n_args(ap) = HALF_W_(1);
+	    //StgAP_fun(ap) = Dup_deepDupFun_closure;
+
+	    SET_HDR(ap, stg_ap_2_upd_info, CCCS);
+	    StgThunk_payload(ap,0) = Dup_deepDupFun_closure;
+
+	    // SET_HDR(ap, stg_deepDup_info, CCCS);
+
+	    W_ clos2;
+	    clos2 = UNTAG(StgClosure_payload(clos, p + payloadOffset));
+	    // StgAP_payload(ap, 0) = clos2;
+	    StgThunk_payload(ap,1) = clos2;
+	    //StgThunk_payload(ap,0) = clos2;
+
+	    type = TO_W_(%INFO_TYPE(%GET_STD_INFO(clos2)));
+	    switch [0 .. N_CLOSURE_TYPES] type {
+		// A fun must stay a fun closure
+		// What about pointers therein? Do we need to recurse here?
+		case FUN, FUN_1_0, FUN_0_1, FUN_1_1,
+		     FUN_2_0, FUN_0_2, FUN_STATIC: {
+		    goto out2;
+		}
+		// Do not copy data without pointers
+		// (includes static data such as [])
+		case CONSTR, CONSTR_1_0, CONSTR_0_1, CONSTR_1_1,
+		     CONSTR_2_0, CONSTR_0_2, CONSTR_STATIC, CONSTR_NOCAF_STATIC: {
+		    if (TO_W_(%INFO_PTRS(%GET_STD_INFO(clos2))) > 0) {
+			StgClosure_payload(copy, p + payloadOffset) = ap;
+		    }
+		    goto out2;
+		}
+		// We can short-cut indirections here, just for the fun of it
+		/*
+		case IND, IND_PERM, IND_STATIC, BLACKHOLE: {
+		    StgThunk_payload(ap,1) = StgInd_indirectee(clos2);
+		    StgClosure_payload(copy, p + payloadOffset) = ap;
+		    goto out2;
+		}
+		*/
+		default: {
+		    StgClosure_payload(copy, p + payloadOffset) = ap;
+		    goto out2;
+		}
+	    }
+	out2:
+
+	    p = p + 1;
+	    goto for2;
+	}
+
+	//foreign "C" printObj(copy "ptr") [];
+	RET_P(copy);
+    } else {
+	foreign "C" dupWarning(clos "ptr") [];
+	RET_P(clos);
+    }
+}
+
+// inspired by rts/StgStdThunks.cmm 
+// But does not work yet.
+INFO_TABLE(stg_deepDup,1,0,THUNK_1_0,"stg_deepDup_info","stg_deepDup_info")
+{
+  TICK_ENT_DYN_THK();
+  STK_CHK_NP(SIZEOF_StgUpdateFrame+WDS(1));
+  UPD_BH_UPDATABLE();
+  LDV_ENTER(R1);
+  ENTER_CCS_THUNK(R1);
+  PUSH_UPD_FRAME(Sp-SIZEOF_StgUpdateFrame,R1);
+  Sp = Sp - SIZEOF_StgUpdateFrame;
+  Sp_adj(-1); // for stg_ap_*_ret
+  R1 = StgThunk_payload(R1,0);
+  jump deepDupClosure;
+}
+
