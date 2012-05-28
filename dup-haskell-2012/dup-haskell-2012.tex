@@ -156,6 +156,178 @@ Our specific contributions are:
 \section{The running example}
 \label{sec:example}
 
+\begin{figure*}
+\centering
+{
+\sffamily
+\begin{tikzpicture}
+[level/.style={sibling distance=24mm/2^#1,level distance=6mm},
+every node/.style={inner sep=1pt},
+solve/.style={draw,circle,inner sep=1pt},
+rate/.style={draw,rectangle,inner sep=2pt},
+]
+\matrix[column sep={6mm},row sep=4mm] (matrix) {
+\node{\rmfamily original:};
+&
+\node[solve] (root) {T};
+\draw (root.north) -- +(0mm,2mm);
+&
+
+&
+
+\node[solve] (root) {N}
+child {node [rate] {T}}
+child {node  {T}};
+\draw (root.north) -- +(0mm,2mm);
+
+&
+\node[solve] (root) {N}
+child {node [rate] {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node [rectangle] {T}};
+\draw (root.north) -- +(0mm,2mm);
+
+&
+
+\node (root) {N}
+child {node  {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node [solve] {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	};
+\draw (root.north) -- +(0mm,2mm);
+
+\\
+\node{\rmfamily solveDup:};
+&
+\node[solve] (root) {T};
+\draw (root.north) -- +(0mm,2mm);
+&
+
+\node  at (-6mm,0mm) (root) {T};
+\draw (root.north) -- +(0mm,2mm);
+\node[solve] (root2) {T};
+\draw[double] (root) -- (root2);
+&
+
+\node  at (-6mm,0mm) (root) {T};
+\draw (root.north) -- +(0,2mm);
+\node[solve](root2) {N}
+child {node [rate] {T}}
+child {node  {T}};
+\draw[double] (root) -- (root2);
+
+&
+\node at (-6mm,0mm)  (root) {T};
+\draw (root.north) -- +(0,2mm);
+\node[solve](root2) {N}
+child {node [rate] {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node  {T}};
+\draw (root.north) -- +(0,2mm);
+\draw[double] (root) -- (root2);
+
+&
+
+\node  at (-6mm,0mm) (root) {T};
+\draw (root.north) -- +(0,2mm);
+\draw [gray] node(root2) {N}
+child {node  {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node[solve,black] {N}
+	child[black] {node  {N} child {node {T}} child {node {T}}}
+	child[black] {node  {N} child {node {T}} child {node {T}}}
+	};
+\draw (root.north) -- +(0,2mm);
+\draw[gray,double] (root) -- (root2);
+
+\\
+\node{\rmfamily rateDup:};
+&
+\node[solve] (root) {T};
+\draw (root.north) -- +(0mm,2mm);
+&
+
+\node[solve] (root) {N}
+child {node [rate] {T}}
+child {node  {T}};
+\draw (root.north) -- +(0mm,2mm);
+
+&
+\node[solve] (root) {N}
+child {node (rate) {T}}
+child {node  {T}};
+\path (rate) +(6mm,0) node[rate] (rate2) {T};
+\draw (root.north) -- +(0mm,2mm);
+\draw[double] (rate) -- (rate2);
+
+
+&
+\node[solve] (root) {N}
+child {node (rate) {T}
+ +(6mm,0) node[rate] (rate2) {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node  {T}};
+\draw (root.north) -- +(0mm,2mm);
+\draw[double] (rate) -- (rate2);
+
+&
+
+\node (root) {N}
+child {node (t1) {T}
+ +(6mm,0) node[gray] (t1') {N}
+	child[gray] {node  {N} child {node {T}} child {node {T}}}
+	child[gray] {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node [solve] (t2) {T}
+ +(6mm,0) node[gray] (t2') {N}
+	child[gray] {node  {N} child {node {T}} child {node {T}}}
+	child[gray] {node  {N} child {node {T}} child {node {T}}}
+	};
+\draw (root.north) -- +(0mm,2mm);
+\draw[gray,double] (t1) -- (t1');
+\draw[gray,double] (t2) -- (t2');
+\\
+}
+;
+
+\path (matrix.south west)
+%+(0,10mm)
+node [below right] {
+%\parbox{148mm}{
+\rmfamily
+%\textbf{Legend:}
+%\\
+\textsf{T} thunk, \textsf{N} node, $=$ dup’ed closure,
+%\\
+\begin{tikzpicture}[baseline=(n.base)]
+\node[solve] (n) {T};
+\end{tikzpicture}
+ current argument of solve,
+ %\\
+\begin{tikzpicture}[baseline=(n.base)]
+\node[rate] (n) {T};
+\end{tikzpicture}
+ current argument of rate
+%}
+};
+\end{tikzpicture}
+}
+\caption{TODO Evaluation}
+\label{fig:evaluation}
+\end{figure*}
+
 For the remainder of the paper, we will use one running example to demonstrate and discuss the use of \li-dup-. The task at hand is to find a path through a (possibly infinite) tree that maximizes some valuation of the nodes. So abstractly, we have a type \li-S- of states, a valuation function \li-value-, an initial state \li-init- and for every state \li-s-, a list of successor states \li-succs s- (see also Figure \ref{fig:ex}).
 
 \begin{figure}
