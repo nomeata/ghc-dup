@@ -75,8 +75,9 @@
 \lstnewenvironment{cmm}{\lstset{style=Cmm}}{}
 \lstdefinestyle{Cmm}{language=C
         ,columns=fullflexible
-%        ,texcl=true
+        ,texcl=true
 %        ,escapechar=!
+	,commentstyle=\sffamily\itshape
         ,basicstyle=\small\ttfamily
 %        ,stringstyle=\itshape
 %        ,showstringspaces=false
@@ -102,16 +103,16 @@
 % \allowdisplaybreaks[1]
 
 \begin{abstract}
-We propose two operations to prevent sharing in Haskell without requiring modification to the data generating code and demonstrate their use and usefulness, and compare them to other approaches to prevent sharing. Our claims are supported by a formal semantics and a prototype implementation.
+We propose two operations to prevent sharing in Haskell that do not require modifying the data generating code, demonstrate their use and usefulness, and compare them to other approaches to prevent sharing. Our claims are supported by a formal semantics and a prototype implementation.
 \end{abstract}
 
 %\tableofcontents
 
-\category{D}{1}{2}
-\category{D}{3}{3}
-\category{E}{2}{}
+\category{D.1.1}{Programming Techniques}{Applicative (Functional) Programming}
+\category{D.3.3}{Programming Languages}{Language Constructs and Features}[Data types and structures]
+\category{E.2}{Data storage representation}{}
 
-\keywords Space Leak, Lazy Evaluation, Sharing, Functional Programming, Natural Semantics
+\keywords Space leak, lazy evaluation, sharing, functional programming, natural semantics
 
 
 \section{Introduction}
@@ -125,9 +126,10 @@ let f :: [Int] -> Int
     l = [1..100000000]
 in  f l
 \end{haskell}
-This program is space-leaky and will quickly run out of memory. Substituting the term for \li-xs- in the body of \lstinline-f- and evaluating that runs quickly and in constant memory. We have avoided the sharing of \lstinline-xs- between the calls to \lstinline-last- and \lstinline-head- and the list elements can be garbage collected as soon as it has been consumed by \lstinline-last-.
+This program is space-leaky and will quickly run out of memory. Substituting the term for \li-xs- in the body of \li-f- and evaluating it runs quickly and in constant memory. We have avoided the sharing of \li-xs- between the calls to \li-last- and \li-head- and the list elements can be garbage collected as soon as it has been consumed by \li-last-.
 
 But this source transformation, as well as other source transformations to avoid sharing (see Section \ref{sec:sourcetrans}) is not always possible or desirable, e.g.\  when the parameter passed to \li-f- comes from library code not under the control of the programmer. For this case, we propose a new primitive operation \lstinline-dup- which copies a (possibly unevaluated) value on the heap.
+\pagebreak[3]
 \begin{haskell}
 data Box a = Box a
 dup :: a -> Box a
@@ -141,14 +143,14 @@ in  f l
 \end{haskell}
 In Section \ref{sec:unsharing} we demonstrate the use of \li-dup- on the more elaborate example introduced in \ref{sec:example}.
 
-An alert reader with knowledge of a typical implementation of a Haskell runtime might already have noticed that just copying the object on the heap representing the parameter \li-xs- might not be enough: If, for example, the first cons-cell of \li-xs- is already evaluated, then \li-dup xs- will copy that cell, but the thunk representing the tail of the list will still be shared between \li-xs'- and \li-xs-, and \li-f- will again consume memory. Such things may occur without the programmer’s knowledge, e.g.\ during an optimization pass such as strictness analysis.
+An sharp-witted reader with knowledge of a typical implementation of a Haskell runtime might already have noticed that just copying the object on the heap representing the parameter \li-xs- might not be enough: If, for example, the first cons-cell of \li-xs- is already evaluated, then \li-dup xs- will copy that cell, but the thunk representing the tail of the list will still be shared between \li-xs'- and \li-xs-, and \li-f- will again devour memory. Such things may occur without the programmer’s knowledge, e.g.\ during an optimization pass such as strictness analysis.
 
-To that end, we propose a variant of \li-dup-, called \li-deepDup-, which not only copies its parameter, but also replaces every reference to other objects in the parameter by calls to \li-deepDup-. These calls are, as one would expect for anything related to Haskell, lazy and only copy the referenced object when and if it is needed. In other words: After evaluating a function which only works on a \li-deepDup-’ed copy of its parameters, nothing this evaluation created on the heap is referenced anymore, unless it is referenced by the function's return value (this is formalized in Theorem \ref{thm:deepdup}.
+To that end, we propose a variant of \li-dup-, called \li-deepDup-, which not only copies its parameter, but also replaces every reference to other objects in the parameter by calls to \li-deepDup-. These calls are, as one would expect for anything related to Haskell, lazy and only copy the referenced object if and when it is needed. In other words: After evaluating a function which only works on a \li-deepDup-’ed copy of its parameters, nothing this evaluation created on the heap is referenced anymore, unless it is referenced by the function's return value (this is formalized in Theorem \ref{thm:deepdup}.
 
 Our specific contributions are:
 \begin{itemize}
 \item We introduce primitives that give the programmer the possibility to explicitly prevent sharing.
-\item In contrast to source transformation based approaches, using \li-dup- does \emph{not} require changes to the generating code.
+\item In contrast approaches based on source transformations, using \li-dup- and \li-deepDup- does \emph{not} require changes to the generating code.
 \item We provide precise semantics in the context of Launchbury’s natural semantics for Lazy Evaluation (Section \ref{sec:semantics}) and prove that the recursive variant \li-deepDup- is effective.
 \item We show the feasibility of our approach using a proof-of-concept implementation, targeting code compiled by an unmodified GHC.
 \end{itemize}
@@ -305,7 +307,7 @@ child {node [solve] (t2) {T}
 
 \path (matrix.south west)
 %+(0,10mm)
-node [below right] {
+node [right] {
 \parbox{88mm}{
 \rmfamily
 %\textbf{Legend:}
@@ -358,7 +360,7 @@ rate d (Node _ ts) = maximum (map (rate (d-1)) ts)
 main = do
   let t = tree init
   print $ solve t !! 10000
-  dosomethingelsewith t
+  doSomethingElseWith t
 \end{haskell}
 \caption{The running example}
 \label{fig:ex}
@@ -368,7 +370,9 @@ Based on these functions, we define a search tree and a solver. The solver picks
 
 Assume a constant number of successors $b$ and that the value of \li-depth- is $d$. Consider what happens when the \li-main- function in Figure \ref{fig:ex} is run: To figure out the first 10\,000 elements of the solution, the \li-rate- function will evaluate lots of nodes that will \emph{not} be picked for the solution. But as they are still referenced by the tree \li-t-, the garbage collector cannot get rid of them. So in addition to the  10\,000 interesting nodes, roughly $10\,000\cdot (b-1)\cdot b^{d-1}$ nodes are evaluated that the programmer knows are not required to be kept around. Te first line of Figure \ref{fig:evaluation} depicts the heap during this evaluation.
 
-More concretely with $d=4$, $b=4$, \li-type S = Word32- and a very cheap \li-succs- function, this program requires \ref{stats:Original:Shared:mem}~MB of system memory and runs in \ref{stats:Original:Shared:time} seconds. Sharing is indeed the problem here: If we were to remove the last line of \li-main-, the program runs in \ref{stats:Original:Unshared:mem}~MB of memory and takes \ref{stats:Original:Unshared:time} seconds.
+\newcommand{\stats}[1]{\ref*{#1}}
+More concretely with $d=4$, $b=4$, \li-type S = Word32- and a very cheap \li-succs- function, this program requires \stats{stats:Original:Shared:mem}~MB of system memory and runs in \stats{stats:Original:Shared:time} seconds.%
+\footnote{All statistics are obtained on a machine with 2.5~GHz and 6~GB of RAM. The complete code used to generate these statistics is available in the \ci!ghc-dup! repository, \url{http://darcs.nomeata.de/ghc-dup}.} Sharing is indeed the problem here: If we remove the last line of \li-main-, the program runs in \stats{stats:Original:Unshared:mem}~MB of memory and takes \stats{stats:Original:Unshared:time} seconds.
 
 \section{Unsharing the example}
 \label{sec:unsharing}
@@ -382,20 +386,20 @@ More concretely with $d=4$, $b=4$, \li-type S = Word32- and a very cheap \li-suc
 
 \subsection{Using dup}
 
-We now modify the example to use our new primitives. There are a few choices in doing so, with different trade-offs. One candidate for \li-dup-ifying is the function \li-solve-: We know that the parameter \li-t- to \li-solve- is an unevaluated expression, and decoupling that from the \li-t- that we pass to \li-dosomethingelsewith- will allow the garbage collector to clean up the tree as \li-solve- proceeds to process it. So we wrap it in \li-solveDup- and use that in \li-main-.
+We now modify the example to use our new primitives. There are a few choices in doing so, with different trade-offs. One candidate for \li-dup-ifying is the function \li-solve-: We know that the parameter \li-t- to \li-solve- is an unevaluated expression, and decoupling that from the \li-t- that we pass to \li-doSomethingElseWith- will allow the garbage collector to clean up the tree as \li-solve- proceeds to process it. So we wrap it in \li-solveDup- and use that in \li-main-.
 \begin{haskell}
 solveDup t = case dup t of Box t' -> solve t'
 \end{haskell}
-And indeed, we have almost achieved the performance of the original program without sharing: \ref{stats:SolveDup:Shared:mem}~MB and \ref{stats:SolveDup:Shared:time} seconds.
+And indeed, we have almost achieved the performance of the original program without sharing: \stats{stats:SolveDup:Shared:mem}~MB and \stats{stats:SolveDup:Shared:time} seconds.
 
 
 Another candidate for \li-dup-ifying is the function \li-rate-:
 As this is the function whose return value is taken into account when deciding whether to pick the argument or not, we know that in most cases, its argument will not be used any more. Therefore, by creating a wrapper \li-rateDup- that duplicates the argument, and using that in \li-solve-, we allow for the argument and all its children to be garbage collected once \li-rate- has finished.
-
 \begin{haskell}
 rateDup t = case dup t of Box t' -> rate t'
 \end{haskell}
-And indeed, both runtime and memory footprint of the program is greatly reduced: It uses \ref{stats:RateDup:Shared:mem}~MB of memory and \ref{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason seems to be  that with \li-rate- wrapped in \li-dup-, even the children the single nodes \li-solve- is looking at do not need to be copied by the garbage collected.
+
+And indeed, both runtime and memory footprint of the program is greatly reduced: It uses \stats{stats:RateDup:Shared:mem}~MB of memory and \stats{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason seems to be that with \li-rate- wrapped in \li-dup-, the first child of the node under inspection of \li-solve- can be freed already when its next child is evaluated by \li-rate-, so even less work needs to be done by the copying garbage collector.
 
 \subsection{Using deepDup}
 \begin{figure*}
@@ -566,17 +570,17 @@ node [above right] {
 \end{figure*}
 
 \label{sec:deepdup}
-Using \li-dup- is a fragile business and requires the programmer to have a very good idea about what is happening at runtime. The approach above will easily fail in two situations. If argument to \li-solveDup- is not just the tree \li-t- but rather an expression that references \li-t-, e.g.\ \li-fstChild t- where \li!fstChild :: Tree -> Tree! does what its name indicates. Then \li-dup- will only copy this unevaluated expression but both copies will reference the same unevaluated expression for~\li-t-, and we are back at the original performance (\ref{stats:SolveDup:SharedThunk:mem}~MB, \ref{stats:SolveDup:SharedThunk:time} seconds).
+Using \li-dup- is a fragile business and requires the programmer to have a very good idea about what is happening at runtime. The approach above is fragile and will fail, for example, in two common situations. If the argument to \li-solveDup- is not just the tree \li-t- but rather an expression that references \li-t-, e.g.\ \li-fstChild t- where \li!fstChild :: Tree -> Tree! does what its name indicates. Then \li-dup- will only copy this unevaluated expression, but both copies will reference the same unevaluated expression for~\li-t-, and we are back at the original performance (\stats{stats:SolveDup:SharedThunk:mem}~MB, \stats{stats:SolveDup:SharedThunk:time} seconds).
 
-The same effect occurs if the Tree is already partly evaluated. Then the parameter \li-t- is the \li-Node- constructor referencing other nodes or unevaluated trees, and copying the constructor does not help to prevent sharing the referenced data.
+The same effect occurs if the Tree is already partly evaluated. Then, the parameter \li-t- is the \li-Node- constructor referencing other nodes or unevaluated trees, and copying the constructor does not help to prevent sharing the referenced data.
 
-This is where \li-deepDup- comes in: This will not only copy the object specified by its parameter, but also change all references therein so that before they are evaluated, they are copied using \li-deepDup- again. So we now wrap \li-solve- in a call to \li-deepDup-:
+This is where \li-deepDup- comes in: This will not only copy the object specified by its parameter, but also change all references therein so that before they are evaluated, \li-deepDup- copies them. So we wrap \li-solve- in a call to \li-deepDup-:
 \begin{haskell}
 solveDeepDup t = case deepDup t of Box t' -> solve t'
 \end{haskell}
-Now we achieve the performance of a successful run with \li-dup- (\ref{stats:SolveDeepDup:SharedThunk:mem}~MB and \ref{stats:SolveDeepDup:SharedThunk:time} seconds), but also in the cases where \li-t- is already partly evaluated or wrapped in a another unevaluated expression.
+Now we achieve the performance of a successful run with \li-dup- (\stats{stats:SolveDeepDup:SharedThunk:mem}~MB and \stats{stats:SolveDeepDup:SharedThunk:time} seconds), but also in the cases where \li-t- has already been partly evaluated or wrapped in another unevaluated expression.
 
-Using \li-deepDup- is therefore more reliable and easier to handle: The programmer does not have to have an exact idea of the evaluation state of the arguments when \li-deepDup- is called. And the recursive copying is surprisingly cheap: Even when the tree is already fully evaluated, e.g. by an earlier call to \li-solve t !! 10000-, the run-time stays the same within the precision of the benchmark.
+Using \li-deepDup- is therefore more reliable and easier to handle: The programmer need not have an exact idea of the evaluation state of the arguments when \li-deepDup- is called. And the recursive copying is surprisingly cheap: Even when the tree is already fully evaluated, e.g. by an earlier call to \li-solve t !! 10000-, the run-time stays the same within the precision of the benchmark.
 %\footnote{In fact, it is reliably reduced by about one percent; the reason is not yet clear to us.}
 
 Figure \ref{fig:stats} collects these statistics for the original and the modified code, each applied to an otherwise unreferenced tree first and then to a tree with a live reference, either unevaluated, wrapped in another thunk, partly evaluated and fully evaluated.
@@ -584,9 +588,10 @@ Figure \ref{fig:stats} collects these statistics for the original and the modifi
 \section{Other approaches to unsharing}
 \label{sec:sourcetrans}
 
-The problem at hand is, of course, not new, and Haskell programmers have solved it the one or other way before by rewriting the code to allow more control over sharing.
+The problem at hand is, of course, not new, and Haskell programmers have solved it  one way or the other before by rewriting the code to allow more control over sharing.
 
 \subsection{The unit type argument pattern}
+\label{sec:unit}
 
 A common approach is to replace values that you do not want to be shared by functions, e.g.\ by wrapping a bound expression \li-let e = ...- into a lambda expression \li!let e = \() -> ...!. At every point in the program where \li-e- is required, one can get the value of it using \li-e ()-; there will be no sharing between different calls to \li-e ()-
 
@@ -601,7 +606,7 @@ main = do
 works as expected without optimization. Passing  \ci!-O! to GHC results in sharing again as a result of the full laziness transformation. In fact, in a discussion of this example on the GHC bug tracker \citep{spaceleakbug}, Claus Reinke suggests an operation like \li-dup- to solve this.
 % http://hackage.haskell.org/trac/ghc/ticket/917
 
-If, however, the type signature of \li-xs- is not given, then no unwanted sharing happens even with \ci!-O!. The inferred, most general type of \li-xs- is polymorphic with type class constraints. This implies that additional parameters being passed under the hood, these successfully prevent sharing.
+If, however, the type signature of \li-xs- is not given, then no unwanted sharing happens even with \ci!-O!. The inferred, most general type of \li-xs- is polymorphic with type class constraints. This implies that additional parameters are being passed under the hood and they successfully prevent sharing.
 
 Applying this pattern to our problem, and aiming for a tree with unshareable leaves, we can define the following types:
 \begin{haskell}
@@ -611,8 +616,9 @@ type UTree = () -> UTree'
 The required changes to the functions on trees are mechanical and guided by the type checker. The resulting code, when not hit by some optimization-induced re-sharing, shows very good time and space complexity. If sharing is desired at some points of the program, those parts will have to work with the regular \li-Tree- type, possibly leading to a duplication of code.
 
 \subsection{Church encoding}
+\label{sec:church}
 
-An alternative is to restructure the program so that the value that must not be shared is not represented using data constructors but rather as a higher order function. This transformation is known as the Church encoding of a data type. For the tree in our running example we would obtain the following type and conversation functions:
+An alternative is to restructure the program so that the value that must not be shared is not represented using data constructors but rather as a higher-order function. This transformation is known as the Church encoding of a data type. For the tree in our running example we would obtain the following type and conversion functions:
 \begin{haskell}
 type CTree = forall a. (S -> [a] -> a) -> a
 toCTree :: Tree -> CTree
@@ -621,7 +627,7 @@ fromCTree :: CTree -> Tree
 fromCTree ct = ct Node
 \end{haskell}
 
-A church encoded tree corresponding to the value \li-tree s- can be nicely created with the following code:
+A church-encoded tree corresponding to the value \li-tree s- can be nicely created with the following code:
 \begin{haskell}
 ctree :: S -> CTree
 ctree s f = f s $ map (\s' -> ctree s' f) (succs s)
@@ -643,7 +649,7 @@ This additional complexity might make this approach impractical in larger settin
 \section{A natural semantics}
 \label{sec:semantics}
 
-To substantiate our claims about the usefulness of \li-dup- and especially \li-deepDup-, we give them a precise meaning in within Launchbury’s Natural Semantics for Lazy Evaluation \citep{launchbury} and prove that all memory allocated by a function whose arguments are wrapped with \li-deepDup- can be freed after the function has been evaluated completely.
+To substantiate our claims about the usefulness of \li-dup- and especially \li-deepDup-, we give them a precise meaning within Launchbury’s Natural Semantics for Lazy Evaluation \citep{launchbury} and prove that all memory allocated by a function whose arguments are wrapped with \li-deepDup- can be freed after the function has been evaluated completely.
 
 We extend Launchbury’s semantics for normalized lambda calculus with our two primitives:
 \newcommand{\mdup}{\text{\textsf{dup}}}
@@ -662,6 +668,7 @@ We extend Launchbury’s semantics for normalized lambda calculus with our two p
 \newcommand{\ufv}[1]{\text{ufv}(#1)}
 \newcommand{\ur}[2]{\text{ur}_{#1}(#2)}
 \newcommand{\dom}[1]{\text{dom}\,#1}
+\newcommand{\fresh}[1]{#1'}
 \begin{alignat*}{2}
 x,y &\in \sVar \\
 e &\in
@@ -706,7 +713,7 @@ In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{V
 & \sRule{Let}
 \\\\
 \inferrule
-{\sred{\Gamma,x\mapsto e, \bar x\mapsto e} {\bar x} \Delta z}
+{\sred{\Gamma,x\mapsto e, \fresh x\mapsto e} {\fresh x} \Delta z}
 {\sred{\Gamma,x\mapsto e}{\sDup x} \Delta z}
 & \sRule{Dup}
 \\\\
@@ -716,9 +723,9 @@ In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{V
 \sred{
 \Gamma,
 x\mapsto e,
-\bar x\mapsto e[\bar y_i/y_i],
-\bar y_i \mapsto \sDeepDup y_i
-} {\bar x} \Delta z \\ \{y_i\}_i = \fv e
+\fresh x\mapsto e[\fresh y_i/y_i],
+\fresh y_i \mapsto \sDeepDup y_i
+} {\fresh x} \Delta z \\ \{y_i\}_i = \fv e
 \end{gathered}}
 }
 {\sred{\Gamma,x\mapsto e}{\sDeepDup x} \Delta z}
@@ -751,7 +758,7 @@ If $\sred\Gamma e \Delta z$ then for all environments $\rho$,
 The proof is by induction on the derivation, the two additional cases are:
 
 \case{$\sDup x$}
-By induction, we know (i) $\dsem{\bar x}{\esem{\Gamma, x \mapsto e, \bar x \mapsto e} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma, x \mapsto e, \bar x \mapsto e} \rho \le \esem \Delta \rho$.
+By induction, we know (i) $\dsem{\fresh x}{\esem{\Gamma, x \mapsto e, \fresh x \mapsto e} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma, x \mapsto e, \fresh x \mapsto e} \rho \le \esem \Delta \rho$.
 
 For the first part, we have 
 \begin{align*}
@@ -759,25 +766,25 @@ For the first part, we have
 &= \dsem{x}{\esem{\Gamma, x\mapsto e}\rho}\\
 %&= \esem{\Gamma, x\mapsto e}\rho\ x\\
 &= \dsem{e}{\esem{\Gamma, x\mapsto e}}\\
-&= \dsem{e}{\esem{\Gamma, x\mapsto e, \bar x \mapsto e}} && \text{($\bar x$ fresh)}\\
-%&= \esem{\Gamma, x\mapsto e, \bar x \mapsto e}\rho\ \bar x \\
-&= \dsem{\bar x}{\esem{\Gamma, x\mapsto e, \bar x \mapsto e}\rho} \\
+&= \dsem{e}{\esem{\Gamma, x\mapsto e, \fresh x \mapsto e}} && \text{($\fresh x$ fresh)}\\
+%&= \esem{\Gamma, x\mapsto e, \fresh x \mapsto e}\rho\ \fresh x \\
+&= \dsem{\fresh x}{\esem{\Gamma, x\mapsto e, \fresh x \mapsto e}\rho} \\
 &= \dsem{z}{\esem \Delta \rho} &&\text{(by (i))}
 \end{align*}
 as desired.
 
-The second part follows from (ii) and that $\bar x$ is fresh:
+The second part follows from (ii) and that $\fresh x$ is fresh:
 \begin{align*}
-\esem{\Gamma, x\mapsto e}\rho \le \esem{\Gamma, x\mapsto e, \bar x\mapsto e} \rho \le \esem{\Delta}\rho
+\esem{\Gamma, x\mapsto e}\rho \le \esem{\Gamma, x\mapsto e, \fresh x\mapsto e} \rho \le \esem{\Delta}\rho
 \end{align*}
 
 \case{$\sDeepDup x$}
-Let \mbox{$\Gamma' = \Gamma, x\mapsto e, \bar x\mapsto e[\bar y_i/y_i], \bar y_i \mapsto \sDeepDup {y_i}$}.
-By induction, we know (i) $\dsem{\bar x}{\esem{\Gamma'} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma'} \rho \le \esem \Delta \rho$.
+Let \mbox{$\Gamma' = \Gamma, x\mapsto e, \fresh x\mapsto e[\fresh y_i/y_i], \fresh y_i \mapsto \sDeepDup {y_i}$}.
+By induction, we know (i) $\dsem{\fresh x}{\esem{\Gamma'} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma'} \rho \le \esem \Delta \rho$.
 
-The newly introduced variables $\bar y_i$ have the same semantics as their original counterparts:
+The newly introduced variables $\fresh y_i$ have the same semantics as their original counterparts:
 \[
-\dsem{\bar y_i}{\esem{\Gamma'}\rho}
+\dsem{\fresh y_i}{\esem{\Gamma'}\rho}
 %= \esem{\Gamma'}\rho\ y_i
 = \dsem{\sDeepDup {y_i}}{\esem{\Gamma'}\rho}
 %\\
@@ -785,13 +792,13 @@ The newly introduced variables $\bar y_i$ have the same semantics as their origi
 %= \esem{\Gamma'}\rho\ y_i = \esem{\Gamma, x\mapsto e}\rho\ y_i
 = \dsem{y_i}{\esem{\Gamma, x\mapsto e}\rho}.
 \]
-This implies (iii) $\dsem{e[\bar y_i/y_i]}{\esem{\Gamma, x\mapsto e}\rho} = \dsem{e}{\esem{\Gamma'}\rho}$. Hence
+This implies (iii) $\dsem{e[\fresh y_i/y_i]}{\esem{\Gamma, x\mapsto e}\rho} = \dsem{e}{\esem{\Gamma'}\rho}$. Hence
 \begin{align*}
 &\phantom{{}={}}\dsem{\sDeepDup x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{e}{\esem{\Gamma, x\mapsto e}\rho} &&\text{(by (iii))}\\
-&= \dsem{e[\bar y_i/y_i]}{\esem{\Gamma'}\rho}\\
-&= \dsem{\bar x}{\esem{\Gamma'}\rho}\\
+&= \dsem{e[\fresh y_i/y_i]}{\esem{\Gamma'}\rho}\\
+&= \dsem{\fresh x}{\esem{\Gamma'}\rho}\\
 &= \dsem{z}{\esem \Delta \rho} &&\text{(by (i))}
 \end{align*}
 and
@@ -861,29 +868,29 @@ As all bound variables are distinct, no $x_i\in U$ and from $U\cap \ur\Gamma l
 = \emptyset$ we have $U \cap \ur {\Gamma'} e = \emptyset$ and the statement
 follows from the inductive case.
 \case{$\sDup x$}
-Clearly $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma, x\mapsto e, \bar x \mapsto e$. Also, $\ur{\Gamma,x\mapsto e, \bar x\mapsto e}{\bar x} = \ur{\Gamma, x\mapsto e}{x} \cup \{x\} = \ur{\Gamma, x\mapsto e}{x} \cup \{\sDup x\} $. As all bound variables are distinct, $\bar x\notin U$ and from $U \cap \ur{\Gamma, x\mapsto e}{\sDup x}= \emptyset$ we have $U \cap \ur{\Gamma,x\mapsto e, \bar x \mapsto e}{\sDup x}=\emptyset$, so the statement follows from the inductive case.
+Clearly $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma, x\mapsto e, \fresh x \mapsto e$. Also, $\ur{\Gamma,x\mapsto e, \fresh x\mapsto e}{\fresh x} = \ur{\Gamma, x\mapsto e}{x} \cup \{x\} = \ur{\Gamma, x\mapsto e}{x} \cup \{\sDup x\} $. As all bound variables are distinct, $\fresh x\notin U$ and from $U \cap \ur{\Gamma, x\mapsto e}{\sDup x}= \emptyset$ we have $U \cap \ur{\Gamma,x\mapsto e, \fresh x \mapsto e}{\sDup x}=\emptyset$, so the statement follows from the inductive case.
 \case{$\sDeepDup x$}
-Let $\Gamma' = \Gamma, x\mapsto e, \bar x\mapsto e[\bar y_i/y_i], \bar y_i \mapsto \sDeepDup y_i$.
+Let $\Gamma' = \Gamma, x\mapsto e, \fresh x\mapsto e[\fresh y_i/y_i], \fresh y_i \mapsto \sDeepDup y_i$.
 Recall that $\ufv {\sDeepDup x}=\emptyset$ and $\ufv{e} \subseteq \fv{e}$. So 
 \begin{align*}
-\ur{\Gamma'}{\bar x}
-&= \{\bar x\} \cup \ur{\Gamma'}{e[\bar y_i/y_i]} \\
-&= \{\bar x\} \cup \mu V. V
+\ur{\Gamma'}{\fresh x}
+&= \{\fresh x\} \cup \ur{\Gamma'}{e[\fresh y_i/y_i]} \\
+&= \{\fresh x\} \cup \mu V. V
 \begin{aligned}[t]
-&\cup \ufv{e[\bar y_i / y_i}\\
-&\cup \textstyle\bigcup_{z \in \ufv{e[\bar y_i / y_i]}} \ur{\Gamma'}{\Gamma'(z)}
+&\cup \ufv{e[\fresh y_i / y_i]}\\
+&\cup \textstyle\bigcup_{z \in \ufv{e[\fresh y_i / y_i]}} \ur{\Gamma'}{\Gamma'(z)}
 \end{aligned}\\
-&\subseteq \{\bar x\} \cup \mu V. V \cup \{\bar y_i\} \cup \textstyle\bigcup_{i} \ur{\Gamma'}{\Gamma'(\bar y_i)} \\
-&= \{\bar x\} \cup \mu V. V \cup \{\bar y_i\} \cup \textstyle\bigcup_{i} \ur{\Gamma'}{\sDeepDup {y_i}}\\
-&= \{\bar x\} \cup \mu V. V \cup \{\bar y_i\}  \\
-&= \{\bar x\} \cup \{\bar y_i\}
+&\subseteq \{\fresh x\} \cup \mu V. V \cup \{\fresh y_i\} \cup \textstyle\bigcup_{i} \ur{\Gamma'}{\Gamma'(\fresh y_i)} \\
+&= \{\fresh x\} \cup \mu V. V \cup \{\fresh y_i\} \cup \textstyle\bigcup_{i} \ur{\Gamma'}{\sDeepDup {y_i}}\\
+&= \{\fresh x\} \cup \mu V. V \cup \{\fresh y_i\}  \\
+&= \{\fresh x\} \cup \{\fresh y_i\}
 \end{align*}
-and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\bar x} = \emptyset$. Clearly, $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma'$, so the statement follows from the inductive case.
+and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyset$. Clearly, $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma'$, so the statement follows from the inductive case.
 \end{proof}
 
 \section{The prototype implementation}
 
-Our implementation works with the Glasgow Haskell Compiler (GHC), version 7.4.1, and requires no modifications to the compiler or its runtime. GHC compiles Haskell code first to a polymorphic, explicitly typed lambda-calculus called \emph{Core} \citep{core,system-fc}, then to the \emph{Spineless Tagless G-machine} (STG) \citep{stg}. From there, it generates \emph{Cmm} code, an implementation of the portable assembly language C-{}- which is then either directly or via LLVM compiled to machine code.
+Our implementation works with the Glasgow Haskell Compiler (GHC), version 7.4.1, and requires no modifications to the compiler or its runtime. GHC compiles Haskell code first to a polymorphic, explicitly typed lambda-calculus called \emph{Core} \citep{core,system-fc}, then to the \emph{Spineless Tagless G-machine} (STG) \citep{stg}. From there, it generates \emph{Cmm} code, an implementation of the portable assembly language C-{}- which is then compiled to machine code, either directly or via LLVM.
 
 Our work happens at the level of the STG, where we only need to worry about data representation on the heap \citep{stg}. Details such as the evaluation model \cite{evalapply} are not important here.
 
@@ -923,7 +930,7 @@ There are various types of objects on the heap, most important are:
 
 When a thunk is evaluated, it is replaced by an indirection which points to the result of the evaluation, which can be a data constructor or a function closure. This way, when another reference to the thunk is evaluated, the computation is not repeated but the calculated result is used directly, hence the result is \emph{shared}. The indirections do not stay around forever: The next garbage collector run, which copies all live data, will replace references to indirections to whatever the indirection points to.
 
-If we want to avoid this sharing, we need to prevent the original reference to be replaced by the indirection. We cannot change to code of the thunk, but we can copy the thunk, thus creating a new copy that is not referenced by other code, and then evaluate that.
+If we want to avoid this sharing, we need to prevent the original reference to be replaced by the indirection. We cannot change the code of the thunk, but we can copy the thunk, thus creating a new copy that is not referenced by other code, and then evaluate that.
 %(TODO: picture?)
 The essence of the surprisingly simple code is listed in Figure \ref{fig:dupcode}; the closure to duplicate is passed in the register \ci-R1- and \ci-Hp- is the heap pointer which is increased by \ci-ALLOC_PRIM-.
 
@@ -931,11 +938,12 @@ The essence of the surprisingly simple code is listed in Figure \ref{fig:dupcode
 \begin{cmm}
 dupClosure {
     clos = UNTAG(R1);
+    // Allocate space for the new closure
     (len) = foreign "C" closure_sizeW(clos "ptr") [];
     ALLOC_PRIM(WDS(len), R1_PTR, dupClosure);
     copy = Hp - WDS(len) + WDS(1);
     p = 0;
-    for:
+    for: // Copy the info pointer and payload
     if(p < len) {
         W_[copy + WDS(p)] = W_[clos + WDS(p)];
         p = p + 1;
@@ -948,26 +956,27 @@ dupClosure {
 \label{fig:dupcode}
 \end{figure}
 
-As discussed in Section \ref{sec:deepdup}, this simple approach is not always sufficient, and we want a recursive variant, \li-deepDup-. This function, shown in Figure \ref{fig:deepdupcode}, needs to access the info table of the closure to figure out what part of the payload is a pointer to another heap object. For every referenced object, an application thunk is created which applies \li-deepDup- (or rather the differently typed variant \li!deepDupFun :: a -> a!. Not included in the code listing are a few shortcuts, e.g.\ data constructors with no pointer arguments such as integer values are not copied.
+As discussed in Section \ref{sec:deepdup}, this simple approach is not always sufficient, and we want a recursive variant, \li-deepDup-. This function, shown in Figure \ref{fig:deepdupcode}, needs to access the info table of the closure to figure out what part of the payload is a pointer to another heap object. For every referenced object, an application thunk is created which applies \li-deepDup- (or rather the variant \li!deepDupFun! with the better suited type \li!a -> a!. Not included in the code listing are a few shortcuts, e.g.\ data constructors with no pointer arguments such as integer values are not copied.
 
 \begin{figure}
 \begin{cmm}
 deepDupClosure {
     clos = UNTAG(R1);
+    // Allocate space for the new closure
     (len) = foreign "C" closure_sizeW(clos "ptr") [];
     ptrs  = TO_W_(%INFO_PTRS(%GET_STD_INFO(clos)));
     bytes = WDS(len) + ptrs * SIZEOF_StgAP + WDS(ptrs);
     ALLOC_PRIM(bytes, R1_PTR, dupClosure);
     copy = Hp - WDS(len) + WDS(1);
     p = 0;
-    for1:
+    for1: // Copy the info pointer and payload
     if(p < len) {
         W_[copy + WDS(p)] = W_[clos + WDS(p)];
         p = p + 1;
 	goto for1;
     }
     p = 0;
-    for2:
+    for2: // Wrap all referenced closures in \textup{deepDup} thunks
     if(p < ptrs) {
 	ap = Hp - bytes + WDS(1)
 	     + p * SIZEOF_StgAP + WDS(p);
@@ -977,7 +986,6 @@ deepDupClosure {
 	W_[copy + WDS(p)] = ap;
 	p = p + 1;
 	goto for2;
-
     }
     RET_P(copy);
 }
@@ -994,22 +1002,22 @@ Our implementation is but a prototype; it does not yet work in all situation. On
 
 %TODO: Discuss possible solutions here?
 
-Also, the prototype does not take multithreaded programs into account and will likely produce bad results when used in such an environment. Similarly, there are several specialized closure type (array, mutable references, weak pointers and others \citep[page HeapObjects]{commentary}). For each of them, we need to determine if they can be safely duplicated and if so, whether this is actually useful.
+Also, the prototype does not take multithreaded programs into account and will likely produce bad results when used in such an environment. Similarly, there are several specialized closure type (array, mutable references, weak pointers and others \citep[page HeapObjects]{commentary}). For each of them, we would need to determine if they can be safely duplicated and if so, whether this is actually useful.
 
-Function closures need special treatment as there are cases where code assumes a certain reference to always be a function closure and never a thunk that will evaluate to a function. But this is what \li-deepDup- is creating. Currently, \li-deepDup- will in this case leave the reference as it is. A solution would be to copy the function closure eagerly, so that the reference in the copy again points to function closure. This would require more sophisticated code to detect cycles. 
+Function closures need special treatment as there are cases where code assumes a certain reference to always be a function closure and never a thunk that will evaluate to a function. But this is what \li-deepDup- is creating. Currently, \li-deepDup- will in this case leave the reference as it is. A solution would be to copy the function closure eagerly, so that the reference in the copy again points to a function closure. This would require more sophisticated code to detect cycles. 
 
 \section{Conclusions and further work}
 
 We have shown the feasibility of an explicit sharing-preventing operator in a lazy functional language. We provided two variants, \li-dup- and \li-deepDup-, the former is simpler, but possibly hard to put to use effectively, the latter works more predictably, but may impose a larger performance penalty. This is, on a prototypical level, possible with an unmodified Haskell compiler.
 
-As described in Section \ref{sec:shortcomings}, there is work to be done on the implementation before it can be used in production code. Some of that might require changes to the compiler code. Given how sensitive the code is to changes in the runtime presentation of Haskell values, a productive version of \li-dup- should probably be provided by the compiler.
+As described in Section \ref{sec:shortcomings}, there is work to be done on the implementation before it can be used in production code. Some of that might require changes to the compiler code. Given how sensitive the code is to changes in the runtime representation of Haskell values, a productive version of \li-dup- should probably be provided by the compiler.
 
-From the programmer’s point of view, our primitives may be a bit delicate to use, as he has few way to specify or analyze the state of evaluation and sharing during the execution of his program. This is a general problem of Haskell and deserves more attention in general. We hope that this work is one step towards a Haskell with better controllable and understandable time and space behavior.
+From the programmer’s point of view, our primitives may be a bit delicate to use, as she has few way to specify or analyze the state of evaluation and sharing during the execution of her program. This is a general problem of Haskell and deserves more attention in general. We hope that this work is one step towards a Haskell with better controllable and understandable time and space behavior.
 
 
 \acks
 
-I would like to thank Andreas Lochbihler for fruitful discussions. This work was supported by the Deutsche Telekom Stiftung.
+I would like to thank Andreas Lochbihler for fruitful discussions and proof-reading This work was supported by the Deutsche Telekom Stiftung.
 
 \bibliographystyle{abbrvnat}
 \bibliography{bib}
