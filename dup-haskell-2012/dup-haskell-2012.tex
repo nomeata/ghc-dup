@@ -161,10 +161,11 @@ Our specific contributions are:
 {
 \sffamily
 \begin{tikzpicture}
-[level/.style={sibling distance=24mm/2^#1,level distance=6mm},
+[level/.style={sibling distance=24mm/2^#1,level distance=5mm},
 every node/.style={inner sep=1pt},
 solve/.style={draw,circle,inner sep=1pt},
 rate/.style={draw,rectangle,inner sep=2pt},
+%every path/.style={->},
 ]
 \matrix[column sep={6mm},row sep=4mm] (matrix) {
 \node{\rmfamily original:};
@@ -203,7 +204,7 @@ child {node [solve] {N}
 \draw (root.north) -- +(0mm,2mm);
 
 \\
-\node{\rmfamily solveDup:};
+\node{\rmfamily \textsf{solveDup}:};
 &
 \node[solve] (root) {T};
 \draw (root.north) -- +(0mm,2mm);
@@ -251,7 +252,7 @@ child {node[solve,black] {N}
 \draw[gray,double] (root) -- (root2);
 
 \\
-\node{\rmfamily rateDup:};
+\node{\rmfamily \textsf{rateDup}:};
 &
 \node[solve] (root) {T};
 \draw (root.north) -- +(0mm,2mm);
@@ -305,28 +306,30 @@ child {node [solve] (t2) {T}
 \path (matrix.south west)
 %+(0,10mm)
 node [below right] {
-%\parbox{148mm}{
+\parbox{88mm}{
 \rmfamily
 %\textbf{Legend:}
 %\\
-\textsf{T} thunk, \textsf{N} node, $=$ dup’ed closure,
-%\\
+\textsf{T}: thunk, \textsf{N}: node, $=$: dup’ed closure,
+ \textcolor{gray}{garbage},
+\\
 \begin{tikzpicture}[baseline=(n.base)]
 \node[solve] (n) {T};
-\end{tikzpicture}
+\end{tikzpicture}:
  current argument of solve,
  %\\
 \begin{tikzpicture}[baseline=(n.base)]
 \node[rate] (n) {T};
-\end{tikzpicture}
+\end{tikzpicture}:
  current argument of rate
-%}
+}
 };
 \end{tikzpicture}
 }
-\caption{TODO Evaluation}
+\caption{The heap during original and \textsf{dup}’ed evaluation}
 \label{fig:evaluation}
 \end{figure*}
+
 
 For the remainder of the paper, we will use one running example to demonstrate and discuss the use of \li-dup-. The task at hand is to find a path through a (possibly infinite) tree that maximizes some valuation of the nodes. So abstractly, we have a type \li-S- of states, a valuation function \li-value-, an initial state \li-init- and for every state \li-s-, a list of successor states \li-succs s- (see also Figure \ref{fig:ex}).
 
@@ -363,7 +366,7 @@ main = do
 
 Based on these functions, we define a search tree and a solver. The solver picks the successor with the highest rating, whereas the rating is the highest value of nodes at a configurable depth.
 
-Assume a constant number of successors $b$ and that the value of \li-depth- is $d$. Consider what happens when the \li-main- function in Figure \ref{fig:ex} is run: To figure out the first 10\,000 elements of the solution, the \li-rate- function will evaluate lots of nodes that will \emph{not} be picked for the solution. But as they are still referenced by the tree \li-t-, the garbage collector cannot get rid of them. So in addition to the  10\,000 interesting nodes, roughly $10\,000\cdot (b-1)\cdot b^{d-1}$ nodes are evaluated that the programmer knows are not required to be kept around.
+Assume a constant number of successors $b$ and that the value of \li-depth- is $d$. Consider what happens when the \li-main- function in Figure \ref{fig:ex} is run: To figure out the first 10\,000 elements of the solution, the \li-rate- function will evaluate lots of nodes that will \emph{not} be picked for the solution. But as they are still referenced by the tree \li-t-, the garbage collector cannot get rid of them. So in addition to the  10\,000 interesting nodes, roughly $10\,000\cdot (b-1)\cdot b^{d-1}$ nodes are evaluated that the programmer knows are not required to be kept around. Te first line of Figure \ref{fig:evaluation} depicts the heap during this evaluation.
 
 More concretely with $d=4$, $b=4$, \li-type S = Word32- and a very cheap \li-succs- function, this program requires \ref{stats:Original:Shared:mem}~MB of system memory and runs in \ref{stats:Original:Shared:time} seconds. Sharing is indeed the problem here: If we were to remove the last line of \li-main-, the program runs in \ref{stats:Original:Unshared:mem}~MB of memory and takes \ref{stats:Original:Unshared:time} seconds.
 
@@ -395,6 +398,172 @@ rateDup t = case dup t of Box t' -> rate t'
 And indeed, both runtime and memory footprint of the program is greatly reduced: It uses \ref{stats:RateDup:Shared:mem}~MB of memory and \ref{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason seems to be  that with \li-rate- wrapped in \li-dup-, even the children the single nodes \li-solve- is looking at do not need to be copied by the garbage collected.
 
 \subsection{Using deepDup}
+\begin{figure*}
+\centering
+{
+\sffamily
+\begin{tikzpicture}
+[level/.style={sibling distance=24mm/2^#1,level distance=5mm},
+every node/.style={inner sep=1pt},
+solve/.style={draw,circle,inner sep=1pt},
+rate/.style={draw,rectangle,inner sep=2pt},
+]
+\matrix[column sep={6mm},row sep=4mm] (matrix) {
+\node{\rmfamily \textsf{solveDup}:};
+&
+\node[solve] (root) {N}
+child {node  {T}}
+child {node  {T}};
+\draw (root.north) -- +(0mm,2mm);
+&
+
+\node  at (-6mm,0mm) (root) {N};
+\draw (root.north) -- +(0mm,2mm);
+\node[solve] (root2) {N}
+child {node  {T}}
+child {node  {T}};
+\draw[double] (root) -- (root2);
+\draw (root) -- (root2-1);
+\draw (root) -- (root2-2);
+&
+
+\node  at (-6mm,0mm) (root) {N};
+\draw (root.north) -- +(0,2mm);
+\node[solve](root2) {N}
+child {node [rate] {T}}
+child {node  {T}};
+\draw[double] (root) -- (root2);
+\draw (root) -- (root2-1);
+\draw (root) -- (root2-2);
+
+&
+\node at (-6mm,0mm)  (root) {N};
+\draw (root.north) -- +(0,2mm);
+\node[solve](root2) {N}
+child {node [rate] {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node  {T}};
+\draw (root.north) -- +(0,2mm);
+\draw[double] (root) -- (root2);
+\draw (root) -- (root2-1);
+\draw (root) -- (root2-2);
+
+&
+
+\node  at (-6mm,0mm) (root) {N};
+\draw (root.north) -- +(0,2mm);
+\draw  node[gray] (root2) {N}
+child {node  {N}
+	child[black] {node  {N} child {node {T}} child {node {T}}}
+	child[black] {node  {N} child {node {T}} child {node {T}}}
+	edge from parent[gray]
+	} 
+child {node[solve,black] {N}
+	child[black] {node  {N} child {node {T}} child {node {T}}}
+	child[black] {node  {N} child {node {T}} child {node {T}}}
+	edge from parent[gray]
+	};
+\draw (root.north) -- +(0,2mm);
+\draw[gray,double] (root) -- (root2);
+\draw (root) -- (root2-1);
+\draw (root) -- (root2-2);
+
+\\
+\node{\rmfamily \textsf{solveDeepDup}:};
+&
+\node[solve] (root) {N}
+child {node  {T}}
+child {node  {T}};
+\draw (root.north) -- +(0mm,2mm);
+&
+
+\node  at (-6mm,0mm) (root) {N}
+child {node  {T}}
+child {node  {T}}
+;
+\draw (root.north) -- +(0mm,2mm);
+\node[solve] (root2) {N}
+child {node[rate]  {D}}
+child {node  {D}};
+\draw[double] (root) -- (root2);
+\draw[->] (root2-1) -- (root-1);
+\draw[->] (root2-2) -- (root-2);
+
+&
+
+\node  at (-6mm,0mm) (root) {N}
+child {node  {T}}
+child {node  {T}}
+;
+\draw (root.north) -- +(0mm,2mm);
+\node[solve] (root2) {N}
+child {node[rate]  {T}}
+child {node  {D}};
+\draw[double] (root) -- (root2);
+\draw[double] (root2-1) -- (root-1);
+\draw[->] (root2-2) -- (root-2);
+
+&
+
+\node  at (-6mm,0mm) (root) {N}
+child {node  {T}}
+child {node  {T}}
+;
+\draw (root.north) -- +(0mm,2mm);
+\node[solve] (root2) {N}
+child {node[rate]  {T}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node  {D}};
+\draw[double] (root) -- (root2);
+\draw[double] (root2-1) -- (root-1);
+\draw[->] (root2-2) -- (root-2);
+
+&
+\node  at (-6mm,0mm) (root) {N}
+child {node  {T}}
+child {node  {T}}
+;
+\draw (root.north) -- +(0mm,2mm);
+\node[gray] (root2) {N}
+child[gray] {node  {T}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node[solve]  {T}
+	child[black] {
+		node  {N} child {node {T}} child {node {T}}
+		}
+	child[black] {
+		node  {N} child {node {T}} child {node {T}}
+		}
+	edge from parent[gray]
+};
+\draw[double,gray] (root) -- (root2);
+\draw[double,gray] (root2-1) -- (root-1);
+\draw[double] (root2-2) -- (root-2);
+
+\\
+}
+;
+\path (matrix.south west)
+%+(0,10mm)
+node [above right] {
+\parbox{88mm}{
+\rmfamily
+%\textbf{Legend:}
+%\\
+\textsf{D}: \textsf{deepDup} application thunk
+}
+};
+\end{tikzpicture}
+}
+\caption{Comparing \textsf{solveDup} and \textsf{solveDeepDup} applied to a partly evaluated tree}
+\label{fig:deepevaluation}
+\end{figure*}
 
 \label{sec:deepdup}
 Using \li-dup- is a fragile business and requires the programmer to have a very good idea about what is happening at runtime. The approach above will easily fail in two situations. If argument to \li-solveDup- is not just the tree \li-t- but rather an expression that references \li-t-, e.g.\ \li-fstChild t- where \li!fstChild :: Tree -> Tree! does what its name indicates. Then \li-dup- will only copy this unevaluated expression but both copies will reference the same unevaluated expression for~\li-t-, and we are back at the original performance (\ref{stats:SolveDup:SharedThunk:mem}~MB, \ref{stats:SolveDup:SharedThunk:time} seconds).

@@ -120,13 +120,13 @@ regularSolver s = Run
     firstChild
     (\t -> return $! solve t !! 10000)
 
-data RunDesc = Original | SolveDup | SolveDeepDup | RateDup | Unit | Church
+data RunDesc = Original | SolveDup | RateDup| SolveDeepDup | Unit | Church
     deriving (Show, Read, Eq)
 
 runDescDesc Original = "original"
-runDescDesc SolveDup = "solveDup"
-runDescDesc SolveDeepDup = "solveDeepDup"
-runDescDesc RateDup = "rateDup"
+runDescDesc SolveDup = "\\textsf{solveDup}"
+runDescDesc SolveDeepDup = "\\textsf{solveDeepDup}"
+runDescDesc RateDup = "\\textsf{rateDup}"
 runDescDesc Unit = "unit lifting"
 runDescDesc Church = "church encoding"
 
