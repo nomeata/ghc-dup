@@ -103,7 +103,7 @@
 % \allowdisplaybreaks[1]
 
 \begin{abstract}
-We propose two operations to prevent sharing in Haskell that do not require modifying the data generating code, demonstrate their use and usefulness, and compare them to other approaches to prevent sharing. Our claims are supported by a formal semantics and a prototype implementation.
+We propose two operations to prevent sharing in Haskell that do not require modifying the data generating code, demonstrate their use and usefulness, and compare them to other approaches to preventing sharing. Our claims are supported by a formal semantics and a prototype implementation.
 \end{abstract}
 
 %\tableofcontents
@@ -128,20 +128,20 @@ in  f l
 \end{haskell}
 This program is space-leaky and will quickly run out of memory. Substituting the term for \li-xs- in the body of \li-f- and evaluating it runs quickly and in constant memory. We have avoided the sharing of \li-xs- between the calls to \li-last- and \li-head- and the list elements can be garbage collected as soon as it has been consumed by \li-last-.
 
-But this source transformation, as well as other source transformations to avoid sharing (see Section \ref{sec:sourcetrans}) is not always possible or desirable, e.g.\  when the parameter passed to \li-f- comes from library code not under the control of the programmer. For this case, we propose a new primitive operation \lstinline-dup- which copies a (possibly unevaluated) value on the heap.
+But this source transformation, as well as other source transformations to avoid sharing (see Section \ref{sec:unit} and \ref{sec:church}) is not always possible or desirable, e.g.\  when the parameter passed to \li-f- comes from library code not under the control of the programmer. For this case, we propose a new primitive operation \li-dup- which copies a (possibly unevaluated) value on the heap.
 \pagebreak[3]
 \begin{haskell}
 data Box a = Box a
 dup :: a -> Box a
 \end{haskell}
-Its value semantics are that of \li!(\x -> Box x)!, and the wrapping in \lstinline-Box- only serves the purpose of controlling the exact point of execution of \lstinline-dup- by case-analyzing the \lstinline-Box-. Using \lstinline-dup- allows us to modify in the above example only the code of \lstinline-f- to prevent sharing and achieve constant memory usage:
+Its value semantics are that of \li!(\x -> Box x)!, and the wrapping in \li-Box- only serves the purpose of controlling the exact point of execution of \li-dup- by case-analyzing the \li-Box-. Using \li-dup- allows us to modify in the above example only the code of \li-f- to prevent sharing and achieve constant memory usage:
 \begin{haskell}
 let f xs = case dup xs of
     	Box xs' -> last xs' + head xs
     l = [1..100000000]
 in  f l
 \end{haskell}
-In Section \ref{sec:unsharing} we demonstrate the use of \li-dup- on the more elaborate example introduced in \ref{sec:example}.
+In Section \ref{sec:unsharing} we demonstrate the use of \li-dup- and the other approaches on the more elaborate example introduced in Section \ref{sec:example}, taking on the programmer’s point of view.
 
 An sharp-witted reader with knowledge of a typical implementation of a Haskell runtime might already have noticed that just copying the object on the heap representing the parameter \li-xs- might not be enough: If, for example, the first cons-cell of \li-xs- is already evaluated, then \li-dup xs- will copy that cell, but the thunk representing the tail of the list will still be shared between \li-xs'- and \li-xs-, and \li-f- will again devour memory. Such things may occur without the programmer’s knowledge, e.g.\ during an optimization pass such as strictness analysis.
 
@@ -152,186 +152,12 @@ Our specific contributions are:
 \item We introduce primitives that give the programmer the possibility to explicitly prevent sharing.
 \item In contrast approaches based on source transformations, using \li-dup- and \li-deepDup- does \emph{not} require changes to the generating code.
 \item We provide precise semantics in the context of Launchbury’s natural semantics for Lazy Evaluation (Section \ref{sec:semantics}) and prove that the recursive variant \li-deepDup- is effective.
-\item We show the feasibility of our approach using a proof-of-concept implementation, targeting code compiled by an unmodified GHC.
+\item We show the feasibility of our approach using a proof-of-concept implementation targeting code compiled by an unmodified GHC. (Section \ref{sec:prototype})
 \end{itemize}
 
+\pagebreak[3]
 \section{The running example}
 \label{sec:example}
-
-\begin{figure*}
-\centering
-{
-\sffamily
-\begin{tikzpicture}
-[level/.style={sibling distance=24mm/2^#1,level distance=5mm},
-every node/.style={inner sep=1pt},
-solve/.style={draw,circle,inner sep=1pt},
-rate/.style={draw,rectangle,inner sep=2pt},
-%every path/.style={->},
-]
-\matrix[column sep={6mm},row sep=4mm] (matrix) {
-\node{\rmfamily original:};
-&
-\node[solve] (root) {T};
-\draw (root.north) -- +(0mm,2mm);
-&
-
-&
-
-\node[solve] (root) {N}
-child {node [rate] {T}}
-child {node  {T}};
-\draw (root.north) -- +(0mm,2mm);
-
-&
-\node[solve] (root) {N}
-child {node [rate] {N}
-	child {node  {N} child {node {T}} child {node {T}}}
-	child {node  {N} child {node {T}} child {node {T}}}
-	}
-child {node [rectangle] {T}};
-\draw (root.north) -- +(0mm,2mm);
-
-&
-
-\node (root) {N}
-child {node  {N}
-	child {node  {N} child {node {T}} child {node {T}}}
-	child {node  {N} child {node {T}} child {node {T}}}
-	}
-child {node [solve] {N}
-	child {node  {N} child {node {T}} child {node {T}}}
-	child {node  {N} child {node {T}} child {node {T}}}
-	};
-\draw (root.north) -- +(0mm,2mm);
-
-\\
-\node{\rmfamily \textsf{solveDup}:};
-&
-\node[solve] (root) {T};
-\draw (root.north) -- +(0mm,2mm);
-&
-
-\node  at (-6mm,0mm) (root) {T};
-\draw (root.north) -- +(0mm,2mm);
-\node[solve] (root2) {T};
-\draw[double] (root) -- (root2);
-&
-
-\node  at (-6mm,0mm) (root) {T};
-\draw (root.north) -- +(0,2mm);
-\node[solve](root2) {N}
-child {node [rate] {T}}
-child {node  {T}};
-\draw[double] (root) -- (root2);
-
-&
-\node at (-6mm,0mm)  (root) {T};
-\draw (root.north) -- +(0,2mm);
-\node[solve](root2) {N}
-child {node [rate] {N}
-	child {node  {N} child {node {T}} child {node {T}}}
-	child {node  {N} child {node {T}} child {node {T}}}
-	}
-child {node  {T}};
-\draw (root.north) -- +(0,2mm);
-\draw[double] (root) -- (root2);
-
-&
-
-\node  at (-6mm,0mm) (root) {T};
-\draw (root.north) -- +(0,2mm);
-\draw [gray] node(root2) {N}
-child {node  {N}
-	child {node  {N} child {node {T}} child {node {T}}}
-	child {node  {N} child {node {T}} child {node {T}}}
-	}
-child {node[solve,black] {N}
-	child[black] {node  {N} child {node {T}} child {node {T}}}
-	child[black] {node  {N} child {node {T}} child {node {T}}}
-	};
-\draw (root.north) -- +(0,2mm);
-\draw[gray,double] (root) -- (root2);
-
-\\
-\node{\rmfamily \textsf{rateDup}:};
-&
-\node[solve] (root) {T};
-\draw (root.north) -- +(0mm,2mm);
-&
-
-\node[solve] (root) {N}
-child {node [rate] {T}}
-child {node  {T}};
-\draw (root.north) -- +(0mm,2mm);
-
-&
-\node[solve] (root) {N}
-child {node (rate) {T}}
-child {node  {T}};
-\path (rate) +(6mm,0) node[rate] (rate2) {T};
-\draw (root.north) -- +(0mm,2mm);
-\draw[double] (rate) -- (rate2);
-
-
-&
-\node[solve] (root) {N}
-child {node (rate) {T}
- +(6mm,0) node[rate] (rate2) {N}
-	child {node  {N} child {node {T}} child {node {T}}}
-	child {node  {N} child {node {T}} child {node {T}}}
-	}
-child {node  {T}};
-\draw (root.north) -- +(0mm,2mm);
-\draw[double] (rate) -- (rate2);
-
-&
-
-\node (root) {N}
-child {node (t1) {T}
- +(6mm,0) node[gray] (t1') {N}
-	child[gray] {node  {N} child {node {T}} child {node {T}}}
-	child[gray] {node  {N} child {node {T}} child {node {T}}}
-	}
-child {node [solve] (t2) {T}
- +(6mm,0) node[gray] (t2') {N}
-	child[gray] {node  {N} child {node {T}} child {node {T}}}
-	child[gray] {node  {N} child {node {T}} child {node {T}}}
-	};
-\draw (root.north) -- +(0mm,2mm);
-\draw[gray,double] (t1) -- (t1');
-\draw[gray,double] (t2) -- (t2');
-\\
-}
-;
-
-\path (matrix.south west)
-%+(0,10mm)
-node [right] {
-\parbox{88mm}{
-\rmfamily
-%\textbf{Legend:}
-%\\
-\textsf{T}: thunk, \textsf{N}: node, $=$: dup’ed closure,
- \textcolor{gray}{garbage},
-\\
-\begin{tikzpicture}[baseline=(n.base)]
-\node[solve] (n) {T};
-\end{tikzpicture}:
- current argument of solve,
- %\\
-\begin{tikzpicture}[baseline=(n.base)]
-\node[rate] (n) {T};
-\end{tikzpicture}:
- current argument of rate
-}
-};
-\end{tikzpicture}
-}
-\caption{The heap during original and \textsf{dup}’ed evaluation}
-\label{fig:evaluation}
-\end{figure*}
-
 
 For the remainder of the paper, we will use one running example to demonstrate and discuss the use of \li-dup-. The task at hand is to find a path through a (possibly infinite) tree that maximizes some valuation of the nodes. So abstractly, we have a type \li-S- of states, a valuation function \li-value-, an initial state \li-init- and for every state \li-s-, a list of successor states \li-succs s- (see also Figure \ref{fig:ex}).
 
@@ -368,7 +194,7 @@ main = do
 
 Based on these functions, we define a search tree and a solver. The solver picks the successor with the highest rating, whereas the rating is the highest value of nodes at a configurable depth.
 
-Assume a constant number of successors $b$ and that the value of \li-depth- is $d$. Consider what happens when the \li-main- function in Figure \ref{fig:ex} is run: To figure out the first 10\,000 elements of the solution, the \li-rate- function will evaluate lots of nodes that will \emph{not} be picked for the solution. But as they are still referenced by the tree \li-t-, the garbage collector cannot get rid of them. So in addition to the  10\,000 interesting nodes, roughly $10\,000\cdot (b-1)\cdot b^{d-1}$ nodes are evaluated that the programmer knows are not required to be kept around. Te first line of Figure \ref{fig:evaluation} depicts the heap during this evaluation.
+Assume a constant number of successors $b$ and that the value of \li-depth- is $d$. Consider what happens when the \li-main- function in Figure \ref{fig:ex} is run: To figure out the first 10\,000 elements of the solution, the \li-rate- function will evaluate lots of nodes that will \emph{not} be picked for the solution. But as they are still referenced by the tree \li-t-, the garbage collector cannot get rid of them. So in addition to the  10\,000 interesting nodes, roughly $10\,000\cdot (b-1)\cdot b^{d-1}$ nodes are evaluated that the programmer knows are not required to be kept around. The first line of Figure \ref{fig:evaluation} depicts the heap during this evaluation.
 
 \newcommand{\stats}[1]{\ref*{#1}}
 More concretely with $d=4$, $b=4$, \li-type S = Word32- and a very cheap \li-succs- function, this program requires \stats{stats:Original:Shared:mem}~MB of system memory and runs in \stats{stats:Original:Shared:time} seconds.%
@@ -384,9 +210,232 @@ More concretely with $d=4$, $b=4$, \li-type S = Word32- and a very cheap \li-suc
 \label{fig:stats}
 \end{figure*}
 
+\begin{figure*}
+\centering
+{
+\sffamily
+\begin{tikzpicture}
+[level/.style={sibling distance=22mm/2^#1,level distance=6mm},
+every node/.style={inner sep=1pt},
+solve/.style={draw,circle,inner sep=1pt},
+rate/.style={draw,rectangle,inner sep=2pt},
+%every path/.style={->},
+]
+\matrix[column sep={6mm},row sep=4mm] (matrix) {
+\node[left]{\rmfamily original:};
+&
+\node[solve] (root) {T};
+\draw (root.north) -- +(0mm,2mm);
+&
+
+&
+
+\node[solve] (root) {N}
+child {node [rate] {T}}
+child {node  {T}};
+\draw (root.north) -- +(0mm,2mm);
+
+&
+\node[solve] (root) {N}
+child {node [rate] {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node  {T}};
+\draw (root.north) -- +(0mm,2mm);
+
+&
+\node[solve] (root) {N}
+child {node  {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node[rate]  {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+;
+\draw (root.north) -- +(0mm,2mm);
+
+&
+
+\node (root) {N}
+child {node  {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node [solve] {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	};
+\draw (root.north) -- +(0mm,2mm);
+
+\\
+\node[left]{\rmfamily \textsf{solveDup}:};
+&
+\node[solve] (root) {T};
+\draw (root.north) -- +(0mm,2mm);
+&
+
+\node  at (-6mm,0mm) (root) {T};
+\draw (root.north) -- +(0mm,2mm);
+\node[solve] (root2) {T};
+\draw[double] (root) -- (root2);
+&
+
+\node  at (-6mm,0mm) (root) {T};
+\draw (root.north) -- +(0,2mm);
+\node[solve](root2) {N}
+child {node [rate] {T}}
+child {node  {T}};
+\draw[double] (root) -- (root2);
+
+&
+\node at (-6mm,0mm)  (root) {T};
+\draw (root.north) -- +(0,2mm);
+\node[solve](root2) {N}
+child {node [rate] {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node  {T}};
+\draw (root.north) -- +(0,2mm);
+\draw[double] (root) -- (root2);
+
+&
+\node at (-6mm,0mm)  (root) {T};
+\draw (root.north) -- +(0,2mm);
+\node[solve](root2) {N}
+child {node {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node [rate] {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+;
+\draw (root.north) -- +(0,2mm);
+\draw[double] (root) -- (root2);
+
+&
+
+\node  at (-6mm,0mm) (root) {T};
+\draw (root.north) -- +(0,2mm);
+\draw [gray] node(root2) {N}
+child {node  {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node[solve,black] {N}
+	child[black] {node  {N} child {node {T}} child {node {T}}}
+	child[black] {node  {N} child {node {T}} child {node {T}}}
+	};
+\draw (root.north) -- +(0,2mm);
+\draw[gray,double] (root) -- (root2);
+
+\\
+\node[left]{\rmfamily \textsf{rateDup}:};
+&
+\node[solve] (root) {T};
+\draw (root.north) -- +(0mm,2mm);
+&
+
+\node[solve] (root) {N}
+child {node [rate] {T}}
+child {node  {T}};
+\draw (root.north) -- +(0mm,2mm);
+
+&
+\node[solve] (root) {N}
+child {node (rate) {T}}
+child {node  {T}};
+\path (rate) +(6mm,0) node[rate] (rate2) {T};
+\draw (root.north) -- +(0mm,2mm);
+\draw[double] (rate) -- (rate2);
+
+
+&
+\node[solve] (root) {N}
+child {node (rate) {T}
+ +(6mm,0) node[rate] (rate2) {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node  {T}};
+\draw (root.north) -- +(0mm,2mm);
+\draw[double] (rate) -- (rate2);
+
+&
+\node[solve] (root) {N}
+child {node (rate') {T}
+ +(6mm,0) node[gray] (rate'2) {N}
+	child[gray] {node  {N} child {node {T}} child {node {T}}}
+	child[gray] {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node (rate) {T}
+ +(6mm,0) node[rate] (rate2) {N}
+	child {node  {N} child {node {T}} child {node {T}}}
+	child {node  {N} child {node {T}} child {node {T}}}
+	}
+;
+\draw (root.north) -- +(0mm,2mm);
+\draw[double] (rate) -- (rate2);
+\draw[double,gray] (rate') -- (rate'2);
+
+&
+
+\node (root) {N}
+child {node (t1) {T}
+ +(6mm,0) node[gray] (t1') {N}
+	child[gray] {node  {N} child {node {T}} child {node {T}}}
+	child[gray] {node  {N} child {node {T}} child {node {T}}}
+	}
+child {node [solve] (t2) {T}
+ +(6mm,0) node[gray] (t2') {N}
+	child[gray] {node  {N} child {node {T}} child {node {T}}}
+	child[gray] {node  {N} child {node {T}} child {node {T}}}
+	};
+\draw (root.north) -- +(0mm,2mm);
+\draw[gray,double] (t1) -- (t1');
+\draw[gray,double] (t2) -- (t2');
+\\
+}
+;
+
+\path (matrix.south west)
+%+(0,10mm)
+node [below right] {
+\parbox{88mm}{
+\rmfamily
+%\textbf{Legend:}
+%\\
+\textsf{T}: thunk, \textsf{N}: node, $=$: dup’ed closure,
+ \textcolor{gray}{garbage},
+\\
+\begin{tikzpicture}[baseline=(n.base)]
+\node[solve] (n) {T};
+\end{tikzpicture}:
+ current argument of solve,
+ %\\
+\begin{tikzpicture}[baseline=(n.base)]
+\node[rate] (n) {T};
+\end{tikzpicture}:
+ current argument of rate
+}
+};
+\end{tikzpicture}
+}
+\caption{The heap during original and \textsf{dup}’ed evaluation}
+\label{fig:evaluation}
+\end{figure*}
+
+We want to improve the space performance of the program in the example and thus, due to the saved work in the garbage collector, also the runtime. In the following, we use \li-dup-, first wrapping the argument of \li-solve-, then the argument of \li-rate-, and \li-deepDup-. We also try two variants that do not require new primitives to be added, but refactoring the generating code. The statistics are collected in \ref{fig:statistics}, where all six strategies are applied to an otherwise unreferenced tree first and then to a tree with a live reference, either unevaluated, wrapped in another thunk, partly evaluated and fully evaluated.
+
+
 \subsection{Using dup}
 
-We now modify the example to use our new primitives. There are a few choices in doing so, with different trade-offs. One candidate for \li-dup-ifying is the function \li-solve-: We know that the parameter \li-t- to \li-solve- is an unevaluated expression, and decoupling that from the \li-t- that we pass to \li-doSomethingElseWith- will allow the garbage collector to clean up the tree as \li-solve- proceeds to process it. So we wrap it in \li-solveDup- and use that in \li-main-.
+We now modify the example to use our new primitives. There are a few choices in doing so, with different trade-offs. One candidate for \li-dup-ifying is the function \li-solve-: We know that the parameter \li-t- to \li-solve- is an unevaluated expression, and decoupling that from the \li-t- that we pass to \li-doSomethingElseWith- will allow the garbage collector to clean up the tree as \li-solve- proceeds to process it (Figure \ref{fig:evaluation}, second row). So we wrap it in \li-solveDup- and use that in \li-main-.
 \begin{haskell}
 solveDup t = case dup t of Box t' -> solve t'
 \end{haskell}
@@ -399,7 +448,7 @@ As this is the function whose return value is taken into account when deciding w
 rateDup t = case dup t of Box t' -> rate t'
 \end{haskell}
 
-And indeed, both runtime and memory footprint of the program is greatly reduced: It uses \stats{stats:RateDup:Shared:mem}~MB of memory and \stats{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason seems to be that with \li-rate- wrapped in \li-dup-, the first child of the node under inspection of \li-solve- can be freed already when its next child is evaluated by \li-rate-, so even less work needs to be done by the copying garbage collector.
+And indeed, both runtime and memory footprint of the program is greatly reduced: It uses \stats{stats:RateDup:Shared:mem}~MB of memory and \stats{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason is that with \li-rate- wrapped in \li-dup-, the first child of the node under inspection of \li-solve- can be freed already when its next child is evaluated by \li-rate- (Figure \ref{fig:evaluation}, last row, second-to-last column), so even less work needs to be done by the copying garbage collector.
 
 \subsection{Using deepDup}
 \begin{figure*}
@@ -407,13 +456,13 @@ And indeed, both runtime and memory footprint of the program is greatly reduced:
 {
 \sffamily
 \begin{tikzpicture}
-[level/.style={sibling distance=24mm/2^#1,level distance=5mm},
+[level/.style={sibling distance=22mm/2^#1,level distance=6mm},
 every node/.style={inner sep=1pt},
 solve/.style={draw,circle,inner sep=1pt},
 rate/.style={draw,rectangle,inner sep=2pt},
 ]
 \matrix[column sep={6mm},row sep=4mm] (matrix) {
-\node{\rmfamily \textsf{solveDup}:};
+\node[left]{\rmfamily \textsf{solveDup}:};
 &
 \node[solve] (root) {N}
 child {node  {T}}
@@ -475,7 +524,7 @@ child {node[solve,black] {N}
 \draw (root) -- (root2-2);
 
 \\
-\node{\rmfamily \textsf{solveDeepDup}:};
+\node[left]{\rmfamily \textsf{solveDeepDup}:};
 &
 \node[solve] (root) {N}
 child {node  {T}}
@@ -572,25 +621,24 @@ node [above right] {
 \label{sec:deepdup}
 Using \li-dup- is a fragile business and requires the programmer to have a very good idea about what is happening at runtime. The approach above is fragile and will fail, for example, in two common situations. If the argument to \li-solveDup- is not just the tree \li-t- but rather an expression that references \li-t-, e.g.\ \li-fstChild t- where \li!fstChild :: Tree -> Tree! does what its name indicates. Then \li-dup- will only copy this unevaluated expression, but both copies will reference the same unevaluated expression for~\li-t-, and we are back at the original performance (\stats{stats:SolveDup:SharedThunk:mem}~MB, \stats{stats:SolveDup:SharedThunk:time} seconds).
 
-The same effect occurs if the Tree is already partly evaluated. Then, the parameter \li-t- is the \li-Node- constructor referencing other nodes or unevaluated trees, and copying the constructor does not help to prevent sharing the referenced data.
+The same effect occurs if the Tree is already partly evaluated. Then, the parameter \li-t- is the \li-Node- constructor referencing other nodes or unevaluated trees, and copying the constructor does not help to prevent sharing the referenced data, as shown in the first row of Figure \ref{fig:deepevaluation}.
 
 This is where \li-deepDup- comes in: This will not only copy the object specified by its parameter, but also change all references therein so that before they are evaluated, \li-deepDup- copies them. So we wrap \li-solve- in a call to \li-deepDup-:
 \begin{haskell}
 solveDeepDup t = case deepDup t of Box t' -> solve t'
 \end{haskell}
-Now we achieve the performance of a successful run with \li-dup- (\stats{stats:SolveDeepDup:SharedThunk:mem}~MB and \stats{stats:SolveDeepDup:SharedThunk:time} seconds), but also in the cases where \li-t- has already been partly evaluated or wrapped in another unevaluated expression.
+Now we achieve the performance of a successful run with \li-dup- (\stats{stats:SolveDeepDup:SharedThunk:mem}~MB and \stats{stats:SolveDeepDup:SharedThunk:time} seconds), but also in the cases where \li-t- has already been partly evaluated or wrapped in another unevaluated expression. The second row of Figure \ref{fig:deepevaluation} shows \li-deepDup- at work.
 
 Using \li-deepDup- is therefore more reliable and easier to handle: The programmer need not have an exact idea of the evaluation state of the arguments when \li-deepDup- is called. And the recursive copying is surprisingly cheap: Even when the tree is already fully evaluated, e.g. by an earlier call to \li-solve t !! 10000-, the run-time stays the same within the precision of the benchmark.
 %\footnote{In fact, it is reliably reduced by about one percent; the reason is not yet clear to us.}
 
-Figure \ref{fig:stats} collects these statistics for the original and the modified code, each applied to an otherwise unreferenced tree first and then to a tree with a live reference, either unevaluated, wrapped in another thunk, partly evaluated and fully evaluated.
-
-\section{Other approaches to unsharing}
-\label{sec:sourcetrans}
-
-The problem at hand is, of course, not new, and Haskell programmers have solved it  one way or the other before by rewriting the code to allow more control over sharing.
+%\section{Other approaches to unsharing}
+%\label{sec:sourcetrans}
 
 \subsection{The unit type argument pattern}
+
+The problem at hand is, of course, not new, and Haskell programmers have solved it one way or the other before by rewriting the code to allow more control over sharing.
+
 \label{sec:unit}
 
 A common approach is to replace values that you do not want to be shared by functions, e.g.\ by wrapping a bound expression \li-let e = ...- into a lambda expression \li!let e = \() -> ...!. At every point in the program where \li-e- is required, one can get the value of it using \li-e ()-; there will be no sharing between different calls to \li-e ()-
@@ -645,6 +693,14 @@ csolve t = fst (t csolve')
 \end{haskell}
 This additional complexity might make this approach impractical in larger settings.
 
+\subsection{Comparison and interpretation}
+
+As we can see from the statistics in Figure \ref{fig:statistics}, the unit type argument pattern is the clear winner in both run-time and space performance. It is ahead of \li-rateDup- for the same reason that made \li-rateDup- faster than \li-solveDup-: Now even the subtrees in recursive calls of \li-rate- are freed immediately.
+Unfortunately, it requires a thorough refactoring of both the data generating and data consuming code; all combinators working on the data type need to be carefully rewritten to preserve the non-sharing behaviour of the lifted data type. Also, the full laziness transformation can break the pattern, making it slightly fragile.
+
+The church encoding pattern shows good and predicatable memory performance, but exhibits bad run-time behaviour. The cases where it is ahead of other approaches it wins only due to the garbage collector overhead induced by unprevented sharing. As the previous pattern, it requires extensive refactoring.
+
+Our primitives come with a very small overhead when applied to data that is actually unshared, as shown in the first colunmn. In fact, careful use of \li-dup- can improve performance noticably even if only small pieces of data can be un-shared and thus freed quickly.
 
 \section{A natural semantics}
 \label{sec:semantics}
@@ -686,7 +742,7 @@ e &\in
 z &\in \sVal &&\Coloneqq \lambda x . e
 \end{alignat*}
 
-In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}, where $\fv e$ is the set of free variables of $e$ and $\cap z$ is $z$ with all bound variables renamed to completely fresh variables.
+In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ is the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $x'$, $y_i'$ are fresh..
 
 \begin{figure}
 \[
@@ -739,9 +795,16 @@ x\mapsto e,
 \newcommand{\dsem}[2]{\llbracket #1 \rrbracket_{#2}}
 \newcommand{\esem}[1]{\{\!\!\{#1\}\!\!\}}
 \newcommand{\case}[1]{\par\noindent\textbf{Case:} #1\par}
-TODO: Copy all denotational semantics definitions from Launchbury?
 
-Launchbury also defines a denotational semantics and proves his natural semantics to be correct with respect to the denotational semantics. Naturally we want to preserve this property. Our new primitives should be invisible to the denotational semantics, hence we extend the semantics function:
+Besides the natural semantics, Launchbury also defines a denotational semantics He models values as a lifted function space and environments as maps from variables into values. The expression $\dsem e \rho$ is the value of the exression $e$ in the environment $\rho$; $\esem \Gamma \rho$ is the environment $\rho$ updated by the values specified in the heap $\Gamma$ using a fixed poined, as the heap may contain recursive references:
+\begin{multline*}
+\esem{ x_1\mapsto e_1,\ldots,x_n\mapsto e_n}\rho \\
+= \mu \rho'. \rho \sqcup (x_1 \mapsto \dsem{e_1}{\rho'}) \sqcup \cdots \sqcup (x_n \mapsto \dsem{e_n}{\rho'})
+\end{multline*}
+
+
+Launchbury proves his natural semantics to be correct with respect to the denotational semantics. 
+Naturally we want to preserve this property. Our new primitives should be invisible to the denotational semantics, hence we extend the semantics function:
 \begin{align*}
 \dsem{\sDup x}\rho = \dsem{\sDeepDup x}\rho = \dsem{x}\rho.
 \end{align*}
@@ -792,7 +855,7 @@ The newly introduced variables $\fresh y_i$ have the same semantics as their ori
 %= \esem{\Gamma'}\rho\ y_i = \esem{\Gamma, x\mapsto e}\rho\ y_i
 = \dsem{y_i}{\esem{\Gamma, x\mapsto e}\rho}.
 \]
-This implies (iii) $\dsem{e[\fresh y_i/y_i]}{\esem{\Gamma, x\mapsto e}\rho} = \dsem{e}{\esem{\Gamma'}\rho}$. Hence
+This implies (iii) $\dsem{e[\fresh y_i/y_i]}{\esem{\Gamma'}\rho} = \dsem{e}{\esem{\Gamma, x\mapsto e}\rho}$. Hence
 \begin{align*}
 &\phantom{{}={}}\dsem{\sDeepDup x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{x}{\esem{\Gamma, x\mapsto e}\rho}\\
@@ -889,8 +952,9 @@ and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyse
 \end{proof}
 
 \section{The prototype implementation}
+\label{sec:prototype}
 
-Our implementation works with the Glasgow Haskell Compiler (GHC), version 7.4.1, and requires no modifications to the compiler or its runtime. GHC compiles Haskell code first to a polymorphic, explicitly typed lambda-calculus called \emph{Core} \citep{core,system-fc}, then to the \emph{Spineless Tagless G-machine} (STG) \citep{stg}. From there, it generates \emph{Cmm} code, an implementation of the portable assembly language C-{}- which is then compiled to machine code, either directly or via LLVM.
+Our implementation\footnote{\url{http://darcs.nomeata.de/ghc-dup}} works with the Glasgow Haskell Compiler (GHC), version 7.4.1, and requires no modifications to the compiler or its runtime. GHC compiles Haskell code first to a polymorphic, explicitly typed lambda-calculus called \emph{Core} \citep{core,system-fc}, then to the \emph{Spineless Tagless G-machine} (STG) \citep{stg}. From there, it generates \emph{Cmm} code, an implementation of the portable assembly language C-{}- which is then compiled to machine code, either directly or via LLVM.
 
 Our work happens at the level of the STG, where we only need to worry about data representation on the heap \citep{stg}. Details such as the evaluation model \cite{evalapply} are not important here.
 
@@ -1007,6 +1071,8 @@ Also, the prototype does not take multithreaded programs into account and will l
 Function closures need special treatment as there are cases where code assumes a certain reference to always be a function closure and never a thunk that will evaluate to a function. But this is what \li-deepDup- is creating. Currently, \li-deepDup- will in this case leave the reference as it is. A solution would be to copy the function closure eagerly, so that the reference in the copy again points to a function closure. This would require more sophisticated code to detect cycles. 
 
 \section{Conclusions and further work}
+
+While Haskell gives the programmer great devices to get their programs to do the right thing, such as referential transparency and the type system, she has less ways to analize and control their runtime behaviour. Several commercial users of Haskell have mentioned this as one of the main drawbacks of Haskell \citep{sampson,wehr,hesselink}. This work takes one small step towards adressing these issues.
 
 We have shown the feasibility of an explicit sharing-preventing operator in a lazy functional language. We provided two variants, \li-dup- and \li-deepDup-, the former is simpler, but possibly hard to put to use effectively, the latter works more predictably, but may impose a larger performance penalty. This is, on a prototypical level, possible with an unmodified Haskell compiler.
 

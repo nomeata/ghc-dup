@@ -1,5 +1,8 @@
 {-# LANGUAGE Rank2Types, ExistentialQuantification, RecordWildCards #-}
 
+-- compile me with 
+-- > ghc -with-rtsopts=-T -O
+
 import Data.Word
 import Data.List
 import Data.List.Split
@@ -94,8 +97,16 @@ solveDeepDup t = case deepDup t of Box t -> solve t
 solveRateDup (Node n ts) = n :
     solveRateDup (fst (maximumBy (comparing snd) [ (t, rateDup depth t) | t <- ts ]))
 
+solveRateRecDup (Node n ts) = n :
+    solveRateRecDup (fst (maximumBy (comparing snd) [ (t, rateRecDup depth t) | t <- ts ]))
+
 rateDup d t = case dup t of Box t2 -> rate d t2
 {-# NOINLINE rateDup #-}
+
+rateRecDup 0 t = case dup t of Box (Node n _) -> popCount n
+rateRecDup d t = case dup t of Box (Node _ ts) -> maximum (map (rate (d-1)) ts)
+{-# NOINLINE rateRecDup #-}
+
 
 dosomethingwith :: Tree -> IO S
 dosomethingwith t = return $! solve t !! 1
@@ -120,13 +131,20 @@ regularSolver s = Run
     firstChild
     (\t -> return $! solve t !! 10000)
 
-data RunDesc = Original | SolveDup | RateDup| SolveDeepDup | Unit | Church
+data RunDesc = Original 
+	| SolveDup 
+	| RateDup 
+--	| RateRecDup 
+	| SolveDeepDup 
+	| Unit 
+	| Church
     deriving (Show, Read, Eq)
 
 runDescDesc Original = "original"
 runDescDesc SolveDup = "\\textsf{solveDup}"
 runDescDesc SolveDeepDup = "\\textsf{solveDeepDup}"
 runDescDesc RateDup = "\\textsf{rateDup}"
+runDescDesc RateRecDup = "\\textsf{rateRecDup}"
 runDescDesc Unit = "unit lifting"
 runDescDesc Church = "church encoding"
 
@@ -135,8 +153,9 @@ runs :: [(RunDesc, Run)]
 runs = [
     (Original, regularSolver solve),
     (SolveDup, regularSolver solveDup),
-    (SolveDeepDup, regularSolver solveDeepDup),
     (RateDup, regularSolver solveRateDup),
+    (RateRecDup, regularSolver solveRateRecDup),
+    (SolveDeepDup, regularSolver solveDeepDup),
     (Unit, Run
         utree
         (\t -> return $! usolve t !! 10000)
