@@ -430,7 +430,7 @@ node [below right] {
 \label{fig:evaluation}
 \end{figure*}
 
-We want to improve the space performance of the program in the example and thus, due to the saved work in the garbage collector, also the runtime. In the following, we use \li-dup-, first wrapping the argument of \li-solve-, then the argument of \li-rate-, and \li-deepDup-. We also try two variants that do not require new primitives to be added, but refactoring the generating code. The statistics are collected in \ref{fig:statistics}, where all six strategies are applied to an otherwise unreferenced tree first and then to a tree with a live reference, either unevaluated, wrapped in another thunk, partly evaluated and fully evaluated.
+We want to improve the space performance of the program in the example and thus, due to the saved work in the garbage collector, also the runtime. In the following, we use \li-dup-, first wrapping the argument of \li-solve-, then the argument of \li-rate-, and \li-deepDup-. We also try two variants that do not require new primitives to be added, but refactoring the generating code. The statistics are collected in \ref{fig:stats}, where all six strategies are applied to an otherwise unreferenced tree first and then to a tree with a live reference, either unevaluated, wrapped in another thunk, partly evaluated and fully evaluated.
 
 
 \subsection{Using dup}
@@ -695,7 +695,7 @@ This additional complexity might make this approach impractical in larger settin
 
 \subsection{Comparison and interpretation}
 
-As we can see from the statistics in Figure \ref{fig:statistics}, the unit type argument pattern is the clear winner in both run-time and space performance. It is ahead of \li-rateDup- for the same reason that made \li-rateDup- faster than \li-solveDup-: Now even the subtrees in recursive calls of \li-rate- are freed immediately.
+As we can see from the statistics in Figure \ref{fig:stats}, the unit type argument pattern is the clear winner in both run-time and space performance. It is ahead of \li-rateDup- for the same reason that made \li-rateDup- faster than \li-solveDup-: Now even the subtrees in recursive calls of \li-rate- are freed immediately.
 Unfortunately, it requires a thorough refactoring of both the data generating and data consuming code; all combinators working on the data type need to be carefully rewritten to preserve the non-sharing behaviour of the lifted data type. Also, the full laziness transformation can break the pattern, making it slightly fragile.
 
 The church encoding pattern shows good and predicatable memory performance, but exhibits bad run-time behaviour. The cases where it is ahead of other approaches it wins only due to the garbage collector overhead induced by unprevented sharing. As the previous pattern, it requires extensive refactoring.
@@ -794,9 +794,9 @@ x\mapsto e,
 
 \newcommand{\dsem}[2]{\llbracket #1 \rrbracket_{#2}}
 \newcommand{\esem}[1]{\{\!\!\{#1\}\!\!\}}
-\newcommand{\case}[1]{\par\noindent\textbf{Case:} #1\par}
+\newcommand{\case}[1]{\par\vspace{3pt}\noindent\textbf{Case:} #1\par}
 
-Besides the natural semantics, Launchbury also defines a denotational semantics He models values as a lifted function space and environments as maps from variables into values. The expression $\dsem e \rho$ is the value of the exression $e$ in the environment $\rho$; $\esem \Gamma \rho$ is the environment $\rho$ updated by the values specified in the heap $\Gamma$ using a fixed poined, as the heap may contain recursive references:
+Besides the natural semantics, Launchbury also defines a denotational semantics. He models values as a lifted function space and environments as maps from variables into values. The expression $\dsem e \rho$ is the value of the exression $e$ in the environment $\rho$, $\esem \Gamma \rho$ is the environment $\rho$ updated by the values specified in the heap $\Gamma$. This is defined as a fixed point, as the heap may contain recursive references:
 \begin{multline*}
 \esem{ x_1\mapsto e_1,\ldots,x_n\mapsto e_n}\rho \\
 = \mu \rho'. \rho \sqcup (x_1 \mapsto \dsem{e_1}{\rho'}) \sqcup \cdots \sqcup (x_n \mapsto \dsem{e_n}{\rho'})
@@ -884,10 +884,10 @@ This implies that any value on the heap $\Delta$ that was created during the eva
 The theorem is an immediate consequence of the following lemma, with $\Gamma_0 = \Gamma$, for which we need to define two auxillary notions:
 \begin{itemize}
 \item 
-The set of unguarded free variables $\ufv e$ of an expression $e$ has the same inductive definition as $\fv e$ with the exception that $\ufv {\sDeepDup x} = \emptyset$. 
-\item The unguarded reachable set $\ur{\Gamma}{e}$ of an expression $e$ in a context $\Gamma$, which is defined as a least fixedpoint:
+The set of unguarded free variables $\ufv e$ of an expression $e$ has the same inductive definition as $\fv e$ with the exception that $\ufv {\sDeepDup x} = \emptyset$, and 
+\item the unguarded reachable set $\ur{\Gamma}{e}$ of an expression $e$ in a context $\Gamma$, which is defined as a least fixedpoint:
 \[
-\ur{\Gamma}{e} \coloneqq \mu V. V \cup \ufv e \cup \bigcup_{x\in \ufv e}\ur{\Gamma}{x}.
+\ur{\Gamma}{e} \coloneqq \mu V. V \cup \ufv e \cup \bigcup_{x\in \ufv e}\ur{\Gamma}{\Gamma x}.
 \]
 Note that $\ufv e \subseteq \ufv {e'}$ implies $\ur\Gamma e \subseteq \ur\Gamma {e'}$.
 \end{itemize}
@@ -901,13 +901,13 @@ The proof is by induction on the structure of the derivation $\sred\Gamma e \Del
 \case{$\lambda x.e$}
 Immediate.
 \case{$\sApp e x$}
-From $\ufv{\sApp e x} = \ufv{e} \cup \{x\}$ and $U \cap \ur\Gamma{\sApp e x}$ we have $x\notin U$ and $U \cap \ur\Gamma e = \emptyset$. From the left inductive case we obtain $\Gamma_0 \subseteq \Delta$ and (i) $U \cap \ur\Gamma {\lambda y. e'}= \emptyset$.
+From $\ufv{\sApp e x} = \ufv{e} \cup \{x\}$ and $U \cap \ur\Gamma{\sApp e x}= \emptyset$ we have $x\notin U$ and $U \cap \ur\Gamma e = \emptyset$. From the left inductive case we obtain $\Gamma_0 \subseteq \Delta$ and (i) $U \cap \ur\Gamma {\lambda y. e'}= \emptyset$.
 
 From $\ufv{e'[x/y]} \subseteq (\ufv{e'}\setminus \{y\}) \cup \{x\} = \ufv{\lambda y.e'} \cup \{x\}$, (i) and $x\notin U$ we have $U \cap \ur\Gamma{e'[x/y]} = \emptyset$. With $\Gamma_0 \subseteq \Delta$ the statement follows from the right inductive case.
 \case{$x$}
-As $x \in \ur{\Gamma,x \mapsto e} x$ and removing a variable from a heap does not increase unreachable sets, $\ur\Gamma e \subseteq \ur{\Gamma, x\mapsto e}e \subseteq \ur{\Gamma,x\mapsto e} x$. Furthermore, $x \notin U$, so $\Gamma_0 \subseteq \Gamma$ and we can invoke the inductive case and obtain $\Gamma_0 \subseteq \Delta$ and $U \cap \ur\Delta z = \emptyset$. As $\Delta \subseteq \Delta, x \mapsto z$, $\ufv{z} = \ufv{\hat z}$ and $\ur \Delta z = \ur {\Delta, x \mapsto z} {\hat z}$, the statement follows.
+As $x \in \ur{\Gamma,x \mapsto e} x$ and removing a variable from a heap does not increase unreachable sets, $\ur\Gamma e \subseteq \ur{\Gamma, x\mapsto e}e \subseteq \ur{\Gamma,x\mapsto e} x$. Furthermore, $x \notin U$, so $\Gamma_0 \subseteq \Gamma$ and we can invoke the inductive case to obtain $\Gamma_0 \subseteq \Delta$ and $U \cap \ur\Delta z = \emptyset$. As $\Delta \subseteq (\Delta, x \mapsto z)$, $\ufv{z} = \ufv{\hat z}$ and $\ur \Delta z = \ur {\Delta, x \mapsto z} {\hat z}$, the statement follows.
 \case{$\sLet {x_1=e_1,\ldots,x_n=e_n}e$}
-For brevity, let $\Gamma' = \Gamma \subseteq \Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n$ and $l = \sLet {x_1=e_1,\ldots,x_n=e_n}e$.
+For brevity, let $\Gamma' = \Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n$ and $l = \sLet {x_1=e_1,\ldots,x_n=e_n}e$.
 Clearly $\Gamma_0 \subseteq \Gamma \subseteq \Gamma'$.
 Also, for each $e_* \in \{e,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \ufv{l} \cup \{x_1,\ldots,x_n\}$. This implies 
 \begin{align*}
@@ -925,13 +925,13 @@ Also, for each $e_* \in \{e,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \ufv{
 \end{aligned}\\
 &= \mu V. V \cup \ufv l \cup \{x_1,\ldots,x_n\} \cup \textstyle\bigcup_{x\in \ufv l}\ur{\Gamma'}{\Gamma' x}\\
 &= \ur{\Gamma'} l \cup \{x_1,\ldots,x_n\}\\
-&= \ur{\Gamma} l \cup \{x_1,\ldots,x_n\}
+&= \ur{\Gamma} l \cup \{x_1,\ldots,x_n\}.
 \end{align*}
-As all bound variables are distinct, no $x_i\in U$ and from $U\cap \ur\Gamma l
+As all bound variables are distinct from variables in the heap, no $x_i\in U$. From $U\cap \ur\Gamma l
 = \emptyset$ we have $U \cap \ur {\Gamma'} e = \emptyset$ and the statement
 follows from the inductive case.
 \case{$\sDup x$}
-Clearly $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma, x\mapsto e, \fresh x \mapsto e$. Also, $\ur{\Gamma,x\mapsto e, \fresh x\mapsto e}{\fresh x} = \ur{\Gamma, x\mapsto e}{x} \cup \{x\} = \ur{\Gamma, x\mapsto e}{x} \cup \{\sDup x\} $. As all bound variables are distinct, $\fresh x\notin U$ and from $U \cap \ur{\Gamma, x\mapsto e}{\sDup x}= \emptyset$ we have $U \cap \ur{\Gamma,x\mapsto e, \fresh x \mapsto e}{\sDup x}=\emptyset$, so the statement follows from the inductive case.
+Clearly $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma, x\mapsto e, \fresh x \mapsto e$. Also, $\ur{\Gamma,x\mapsto e, \fresh x\mapsto e}{\fresh x} = \ur{\Gamma, x\mapsto e}{x} \cup \{\fresh x\} = \ur{\Gamma, x\mapsto e}{\sDup x} \cup \{\fresh x\}$. As $x'$ is fresh, $\fresh x\notin U$ and from $U \cap \ur{\Gamma, x\mapsto e}{\sDup x}= \emptyset$ we have $U \cap \ur{\Gamma,x\mapsto e, \fresh x \mapsto e}{\fresh x}=\emptyset$, so the statement follows from the inductive case.
 \case{$\sDeepDup x$}
 Let $\Gamma' = \Gamma, x\mapsto e, \fresh x\mapsto e[\fresh y_i/y_i], \fresh y_i \mapsto \sDeepDup y_i$.
 Recall that $\ufv {\sDeepDup x}=\emptyset$ and $\ufv{e} \subseteq \fv{e}$. So 
@@ -995,7 +995,6 @@ There are various types of objects on the heap, most important are:
 When a thunk is evaluated, it is replaced by an indirection which points to the result of the evaluation, which can be a data constructor or a function closure. This way, when another reference to the thunk is evaluated, the computation is not repeated but the calculated result is used directly, hence the result is \emph{shared}. The indirections do not stay around forever: The next garbage collector run, which copies all live data, will replace references to indirections to whatever the indirection points to.
 
 If we want to avoid this sharing, we need to prevent the original reference to be replaced by the indirection. We cannot change the code of the thunk, but we can copy the thunk, thus creating a new copy that is not referenced by other code, and then evaluate that.
-%(TODO: picture?)
 The essence of the surprisingly simple code is listed in Figure \ref{fig:dupcode}; the closure to duplicate is passed in the register \ci-R1- and \ci-Hp- is the heap pointer which is increased by \ci-ALLOC_PRIM-.
 
 \begin{figure}
@@ -1062,9 +1061,9 @@ deepDupClosure {
 \subsection{Shortcomings of the implementation}
 \label{sec:shortcomings}
 
-Our implementation is but a prototype; it does not yet work in all situation. One large problem are statically allocated thunks: A value, say \li-nats = [0..]- defined at the module level is compiled to a thunk with closure type \ci-THUNK_STATIC-, also called a constant applicative form (CAF), and receives special treatment by the garbage collector. Copying such a closure to the heap using the code above would make the garbage collector abort, as it does not expect a static thunk to be found on the heap. But it is not possible to change the type of the closure, as the info table containing the type lies directly next to the code. And in order to create a modified info table somewhere else, the code needs to be copied as well. Therefore, \li-dup- currently does not work for static thunks. If it is passed such a thunk it will print a warning and return the original reference, retaining sharing.
+Our implementation is but a prototype; it does not yet work in all situation. One large problem are statically allocated thunks: A value, say \li-nats = [0..]-, defined at the module level is compiled to a thunk with closure type \ci-THUNK_STATIC-, also called a constant applicative form (CAF), and receives special treatment by the garbage collector. Copying such a closure to the heap using the code above would make the garbage collector abort, as it does not expect a static thunk to be found on the heap. But it is not possible to change the type of the closure, as the info table containing the type lies directly next to the code. And in order to create a modified info table somewhere else, the code needs to be copied as well. Therefore, \li-dup- and \li-deepDup- currently does not work for static thunks. If it is passed such a thunk it will print a warning and return the original reference, retaining sharing.
 
-%TODO: Discuss possible solutions here?
+It should be possible for \li-dup- to support static thunks with some additional information in the compiled code.  Currently, when a static thunk is entered and the stack and heap checks pass, the thunk is replaced by an indirection into the heap and an update frame is pushed on the stack. If there was a way to jump over the code that setups up the indirection and update frame, e.g.\ via an alternative entry point included in the info table, \li-dup- could create a thunk on the heap that calls the static thunk via this route, effectively kicking off evaluation without affecting the original static thunk.  For \li-deepDup- things are more complicated, as references to static objects are not part of the heap object, but are scattered throughout the code. Moving these references to the heap would solve the issue here at hand, but is clearly too expensive, and alternative are needed.
 
 Also, the prototype does not take multithreaded programs into account and will likely produce bad results when used in such an environment. Similarly, there are several specialized closure type (array, mutable references, weak pointers and others \citep[page HeapObjects]{commentary}). For each of them, we would need to determine if they can be safely duplicated and if so, whether this is actually useful.
 
@@ -1072,7 +1071,7 @@ Function closures need special treatment as there are cases where code assumes a
 
 \section{Conclusions and further work}
 
-While Haskell gives the programmer great devices to get their programs to do the right thing, such as referential transparency and the type system, she has less ways to analize and control their runtime behaviour. Several commercial users of Haskell have mentioned this as one of the main drawbacks of Haskell \citep{sampson,wehr,hesselink}. This work takes one small step towards adressing these issues.
+While Haskell gives the programmer great devices to get their programs to do the right thing, such as referential transparency and the type system, she has less ways to analize and control their runtime behaviour. Several commercial users have mentioned this as one of the main drawbacks of Haskell \citep{sampson,wehr,hesselink}. This work takes one small step towards adressing these issues.
 
 We have shown the feasibility of an explicit sharing-preventing operator in a lazy functional language. We provided two variants, \li-dup- and \li-deepDup-, the former is simpler, but possibly hard to put to use effectively, the latter works more predictably, but may impose a larger performance penalty. This is, on a prototypical level, possible with an unmodified Haskell compiler.
 
