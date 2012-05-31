@@ -798,13 +798,14 @@ e &\in
 \\&
 \sLet {x_1 = e_1,\ldots,x_n = e_n} e \mid
 \\&
-\sDup e \mid \sDeepDup e
+\sDup x \mid \sDeepDup x
 \end{aligned}\\
 \Gamma, \Delta, \Theta &\in \sHeap &&= \sVar \pfun \sExp \\
 z &\in \sVal &&\Coloneqq \sLam x e
 \end{alignat*}
+His lambda terms are normalized, i.e.\ all bound variables are distinct and all applications are applications of an expression to a variable.
 
-In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $x'$ and $y_i'$ are fresh.
+In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $x'$ and $y_i'$ are fresh. In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
 
 \begin{figure}
 \[
@@ -831,7 +832,7 @@ In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{V
 & \sRule{Let}
 \\\\
 \inferrule
-{\sred{\Gamma,x\mapsto e, \fresh x\mapsto e} {\fresh x} \Delta z}
+{\sred{\Gamma,x\mapsto e, \fresh x\mapsto \hat e} {\fresh x} \Delta z \\ \fresh x \text{ fresh}}
 {\sred{\Gamma,x\mapsto e}{\sDup x} \Delta z}
 & \sRule{Dup}
 \\\\
@@ -841,9 +842,14 @@ In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{V
 \sred{
 \Gamma,
 x\mapsto e,
-\fresh x\mapsto e[\fresh y_i/y_i],
+\fresh x\mapsto \hat e[\fresh y_i/y_i],
 \fresh y_i \mapsto \sDeepDup y_i
-} {\fresh x} \Delta z \\ \{y_i\}_i = \fv e
+} {\fresh x} \Delta z \\
+\hfill
+\{y_i\}_i = \fv e
+\hfill
+\fresh x, \fresh y_i \text{ fresh}
+\hfill
 \end{gathered}}
 }
 {\sred{\Gamma,x\mapsto e}{\sDeepDup x} \Delta z}
@@ -858,7 +864,7 @@ x\mapsto e,
 \newcommand{\esem}[1]{\{\!\!\{#1\}\!\!\}}
 \newcommand{\case}[1]{\par\vspace{3pt}\noindent\textbf{Case:} #1\par}
 
-Besides the natural semantics, Launchbury also defines a denotational semantics. He models values as a lifted function space and environments as functions from variables into values. The expression $\dsem e \rho$ is the value of the expression $e$ in the environment $\rho$, $\esem \Gamma \rho$ is the environment $\rho$ updated by the values specified in the heap $\Gamma$. This is defined as a fixed point, as the heap may contain recursive references:
+Besides the natural semantics, Launchbury also defines a denotational semantics. He models values as a lifted function space and environments as functions from variables into values. He writes $\rho \le \rho'$  if $\rho'$ extends $\rho$. The expression $\dsem e \rho$ is the value of the expression $e$ in the environment $\rho$, $\esem \Gamma \rho$ is the environment $\rho$ updated by the values specified in the heap $\Gamma$. This is defined as a fixed point, as the heap may contain recursive references:
 \begin{multline*}
 \esem{ x_1\mapsto e_1,\ldots,x_n\mapsto e_n}\rho \\
 = \mu \rho'. \rho \sqcup (x_1 \mapsto \dsem{e_1}{\rho'}) \sqcup \cdots \sqcup (x_n \mapsto \dsem{e_n}{\rho'})
@@ -883,28 +889,29 @@ If $\sred\Gamma e \Delta z$, then for all environments $\rho$,
 The proof in \citep{launchbury} is by induction on the derivation, the two additional cases are:
 
 \case{$\sDup x$}
-By induction, we know (i) $\dsem{\fresh x}{\esem{\Gamma, x \mapsto e, \fresh x \mapsto e} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma, x \mapsto e, \fresh x \mapsto e} \rho \le \esem \Delta \rho$.
+By induction, we know (i) $\dsem{\fresh x}{\esem{\Gamma, x \mapsto e, \fresh x \mapsto \hat e} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma, x \mapsto e, \fresh x \mapsto \hat e} \rho \le \esem \Delta \rho$.
 
 For the first part, we have 
 \begin{align*}
 &\phantom{{}={}}\dsem{\sDup x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{x}{\esem{\Gamma, x\mapsto e}\rho}\\
 %&= \esem{\Gamma, x\mapsto e}\rho\ x\\
-&= \dsem{e}{\esem{\Gamma, x\mapsto e}}\\
-&= \dsem{e}{\esem{\Gamma, x\mapsto e, \fresh x \mapsto e}} && \text{$\fresh x$ fresh}\\
+&= \dsem{e}{\esem{\Gamma, x\mapsto e}\rho}\\
+&= \dsem{\hat e}{\esem{\Gamma, x\mapsto e}\rho}\\
+&= \dsem{\hat e}{\esem{\Gamma, x\mapsto e, \fresh x \mapsto \hat e}\rho} && \text{$\fresh x$ fresh}\\
 %&= \esem{\Gamma, x\mapsto e, \fresh x \mapsto e}\rho\ \fresh x \\
-&= \dsem{\fresh x}{\esem{\Gamma, x\mapsto e, \fresh x \mapsto e}\rho} \\
+&= \dsem{\fresh x}{\esem{\Gamma, x\mapsto e, \fresh x \mapsto \hat e}\rho} \\
 &= \dsem{z}{\esem \Delta \rho} &&\text{by (i)}
 \end{align*}
 as desired.
 
 The second part follows from (ii) and from $\fresh x$ being fresh:
 \begin{align*}
-\esem{\Gamma, x\mapsto e}\rho \le \esem{\Gamma, x\mapsto e, \fresh x\mapsto e} \rho \le \esem{\Delta}\rho
+\esem{\Gamma, x\mapsto e}\rho \le \esem{\Gamma, x\mapsto e, \fresh x\mapsto \hat e} \rho \le \esem{\Delta}\rho
 \end{align*}
 
 \case{$\sDeepDup x$}
-Let \mbox{$\Gamma'$} denote {$\Gamma, x\mapsto e, \fresh x\mapsto e[\fresh y_i/y_i], \fresh y_i \mapsto \sDeepDup {y_i}$}.
+Let \mbox{$\Gamma'$} denote {$\Gamma, x\mapsto e, \fresh x\mapsto \hat e[\fresh y_i/y_i], \fresh y_i \mapsto \sDeepDup {y_i}$}.
 By induction, we know (i) $\dsem{\fresh x}{\esem{\Gamma'} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma'} \rho \le \esem \Delta \rho$.
 
 The newly introduced variables $\fresh y_i$ have the same semantics as their original counterparts:
@@ -917,12 +924,12 @@ The newly introduced variables $\fresh y_i$ have the same semantics as their ori
 %= \esem{\Gamma'}\rho\ y_i = \esem{\Gamma, x\mapsto e}\rho\ y_i
 = \dsem{y_i}{\esem{\Gamma, x\mapsto e}\rho}.
 \]
-This implies (iii) $\dsem{e[\fresh y_i/y_i]}{\esem{\Gamma'}\rho} = \dsem{e}{\esem{\Gamma, x\mapsto e}\rho}$. Hence
+This implies (iii) $\dsem{\hat e[\fresh y_i/y_i]}{\esem{\Gamma'}\rho} = \dsem{e}{\esem{\Gamma, x\mapsto e}\rho}$. Hence
 \begin{align*}
 &\phantom{{}={}}\dsem{\sDeepDup x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{x}{\esem{\Gamma, x\mapsto e}\rho}\\
-&= \dsem{e}{\esem{\Gamma, x\mapsto e}\rho} &&\text{by (iii)}\\
-&= \dsem{e[\fresh y_i/y_i]}{\esem{\Gamma'}\rho}\\
+&= \dsem{e}{\esem{\Gamma, x\mapsto e}\rho}\\
+&= \dsem{\hat e[\fresh y_i/y_i]}{\esem{\Gamma'}\rho} &&\text{by (iii)}\\
 &= \dsem{\fresh x}{\esem{\Gamma'}\rho}\\
 &= \dsem{z}{\esem \Delta \rho} &&\text{by (i)}
 \end{align*}
@@ -952,66 +959,88 @@ The set of unguarded free variables $\ufv e$ of an expression $e$, which is defi
 \[
 \ur{\Gamma}{e} \coloneqq \mu V. V \cup \ufv e \cup \textstyle\bigcup_{x\in \ufv e}\ur{\Gamma}{\Gamma\ x}.
 \]
-Note that $\ufv e \subseteq \ufv {e'}$ implies $\ur\Gamma e \subseteq \ur\Gamma {e'}$.
+Note that $\ufv e \subseteq \ufv {e'}$ implies $\ur\Gamma e \subseteq \ur\Gamma {e'}$. %and, more general, $\ufv e \subseteq \ufv {e'} \cup V$ implies $\ur\Gamma e \subseteq \ur\Gamma {e'} \cup V$ if $V$ is TODO.
 \end{itemize}
 
 \begin{lemma}
-Let $\Gamma_0$ be a heap and $U= \dom\Gamma_0$ its domain. If $\sred\Gamma e \Delta z$, $\Gamma_0 \subseteq \Gamma$ and $U \cap \ur \Gamma e = \emptyset$ then $\Gamma_0 \subseteq \Delta$ and  $U \cap \ur \Delta z=\emptyset$.
 \label{lem:deepdup}
+Let $\Gamma_0$ be a heap and $U= \dom\Gamma_0$ its domain. If $\sred\Gamma e \Delta z$, then the following two statements hold:
+\begin{itemize}
+\item $\Gamma_0 \subseteq \Gamma$ and $U \cap \ur \Gamma e = \emptyset$ implies
+ $\Gamma_0 \subseteq \Delta$ and $U \cap \ur \Delta z=\emptyset$ and
+\item $U \cap \ur\Gamma x = \emptyset$ implies $U\cap \ur\Delta x = \emptyset$ for $x\in \dom\Gamma$.
+\end{itemize}
 \end{lemma}
 \begin{proof}
 The proof is by induction on the structure of the derivation $\sred\Gamma e \Delta z$.
 \case{$\sLam xe$}
 Immediate.
 \case{$\sApp e x$}
-From $\ufv{\sApp e x} = \ufv{e} \cup \{x\}$ and $U \cap \ur\Gamma{\sApp e x}= \emptyset$ we have $x\notin U$ and $U \cap \ur\Gamma e = \emptyset$. From the first inductive case we obtain $\Gamma_0 \subseteq \Delta$ and (i) $U \cap \ur\Gamma {\sLam y. e'}= \emptyset$.
+From $\ur\Gamma{\sApp e x} = \ur\Gamma{e} \cup \ur\Gamma{x}$ and the assumption $U \cap \ur\Gamma{\sApp e x}= \emptyset$ we have $U \cap \ur\Gamma e = \emptyset$ and $U \cap \ur\Gamma x = \emptyset$. From the first inductive case we obtain $\Gamma_0 \subseteq \Delta$, (i) $U \cap \ur\Delta {\sLam y e'}= \emptyset$ and (ii) $U \cap \ur\Delta{x} = \emptyset$.
 
-From $\ufv{e'[x/y]} \subseteq (\ufv{e'}\setminus \{y\}) \cup \{x\} = \ufv{\sLam ye'} \cup \{x\}$, (i) and $x\notin U$ we have $U \cap \ur\Gamma{e'[x/y]} = \emptyset$. With $\Gamma_0 \subseteq \Delta$ the statement follows from the second inductive case.
+As $\ur\Delta{e'[x/y]} \subseteq \ur\Delta{\sLam ye'} \cup \ur\Delta{x}$, (i) and (ii) imply $U \cap \ur\Delta{e'[x/y]} = \emptyset$. With $\Gamma_0 \subseteq \Delta$ we obtain $\Gamma_0\subseteq\Theta$ and $U\cap \ur\Theta z = \emptyset$ from the second inductive case.
+
+These second statement of Lemma \ref{lem:deepdup} follows directly by inductively.
 \case{$x$}
-As $x \in \ur{\Gamma,x \mapsto e} x$ and removing a variable from a heap does not increase unreachable sets, $\ur\Gamma e \subseteq \ur{\Gamma, x\mapsto e}e \subseteq \ur{\Gamma,x\mapsto e} x$. Furthermore, $x \notin U$, so $\Gamma_0 \subseteq \Gamma$ and we can invoke the inductive case to obtain $\Gamma_0 \subseteq \Delta$ and $U \cap \ur\Delta z = \emptyset$. As $\Delta \subseteq (\Delta, x \mapsto z)$, $\ufv{z} = \ufv{\hat z}$ and $\ur \Delta z = \ur {\Delta, x \mapsto z} {\hat z}$, the statement follows.
+As $x \in \ur{\Gamma,x \mapsto e} x$ and removing a variable from a heap does not increase unreachable sets, $\ur\Gamma e \subseteq \ur{\Gamma, x\mapsto e}e \subseteq \ur{\Gamma,x\mapsto e} x$. Furthermore, $x \notin U$, so $\Gamma_0 \subseteq \Gamma$ and we can invoke the inductive case to obtain $\Gamma_0 \subseteq \Delta$ and $U \cap \ur\Delta z = \emptyset$. As $\Delta \subseteq (\Delta, x \mapsto z)$, $\ufv{z} = \ufv{\hat z}$ and $\ur \Delta z = \ur {\Delta, x \mapsto z} {\hat z}$, the  first statement follows.
+
+The second statement follows directly by induction for variables other than $x$; for $x$ it follows from the first statement.
 \case{$\sLet {x_1=e_1,\ldots,x_n=e_n}e$}
-For brevity, let $\Gamma' = \Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n$ and $l = \sLet {x_1=e_1,\ldots,x_n=e_n}e$.
+For brevity, let $\Gamma' = \Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n$ and $e_{l} = \sLet {x_1=e_1,\ldots,x_n=e_n}e$.
 Clearly $\Gamma_0 \subseteq \Gamma \subseteq \Gamma'$.
-Also, for each $e_* \in \{e,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \ufv{l} \cup \{x_1,\ldots,x_n\}$. This implies 
+Also, for each $e_* \in \{e_l,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \ufv{l} \cup \{x_1,\ldots,x_n\}$. This implies 
 \begin{align*}
 \ur{\Gamma'}e
 &= \mu V. V \cup \ufv e \cup \textstyle\bigcup_{x\in \ufv e}\ur{\Gamma'}{\Gamma'\ x} \\
 &\subseteq \mu V. V
 \begin{aligned}[t]
-&\cup \ufv l \cup \{x_1,\ldots,x_n\} \cup \textstyle\bigcup_{x\in \ufv l}\ur{\Gamma'}{\Gamma'\ x} \\
+&\cup \ufv {e_l} \cup \{x_1,\ldots,x_n\} \cup \textstyle\bigcup_{x\in \ufv {e_l}}\ur{\Gamma'}{\Gamma'\ x} \\
 &\cup \ur{\Gamma'}{\Gamma'\ x_1} \cup \ldots \cup \ur{\Gamma'}{\Gamma'\ x_n}
 \end{aligned}\\
 &= \mu V. V
 \begin{aligned}[t]
-&\cup \ufv l \cup \{x_1,\ldots,x_n\} \cup \textstyle\bigcup_{x\in \ufv l}\ur{\Gamma'}{\Gamma'\ x} \\
+&\cup \ufv {e_l} \cup \{x_1,\ldots,x_n\} \cup \textstyle\bigcup_{x\in \ufv {e_l}}\ur{\Gamma'}{\Gamma'\ x} \\
 &\cup \ur{\Gamma'}{e_1} \cup \ldots \cup \ur{\Gamma'}{e_n}
 \end{aligned}\\
-&= \mu V. V \cup \ufv l \cup \{x_1,\ldots,x_n\} \cup \textstyle\bigcup_{x\in \ufv l}\ur{\Gamma'}{\Gamma'\ x}\\
-&= \ur{\Gamma'} l \cup \{x_1,\ldots,x_n\}\\
-&= \ur{\Gamma} l \cup \{x_1,\ldots,x_n\}.
+&= \mu V. V \cup \ufv {e_l} \cup \{x_1,\ldots,x_n\} \cup \textstyle\bigcup_{x\in \ufv {e_l}}\ur{\Gamma'}{\Gamma'\ x}\\
+&= \ur{\Gamma'} {e_l} \cup \{x_1,\ldots,x_n\}\\
+&= \ur{\Gamma} {e_l} \cup \{x_1,\ldots,x_n\}.
 \end{align*}
-As all bound variables are distinct from variables in the heap, no $x_i\in U$. From $U\cap \ur\Gamma l
-= \emptyset$, we have $U \cap \ur {\Gamma'} e = \emptyset$ and the statement
+As all bound variables are distinct from variables in the heap, no $x_i\in U$. From $U\cap \ur\Gamma {e_l}
+= \emptyset$, we have $U \cap \ur {\Gamma'} e = \emptyset$ and the first statement
 follows from the inductive case.
+
+For $x\in \dom\Gamma$ the unreachable set of $x$ cannot contain any of $x_1,\ldots,x_n$ so from $\ur\Gamma{x} = \ur{\Gamma'}x$ the second statement follows by induction.
 \case{$\sDup x$}
-Clearly $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma, x\mapsto e, \fresh x \mapsto e$. Also, $\ur{\Gamma,x\mapsto e, \fresh x\mapsto e}{\fresh x} = \ur{\Gamma, x\mapsto e}{e} \cup \{\fresh x\} \subseteq \ur{\Gamma, x\mapsto e}{\sDup x} \cup \{\fresh x\}$. As $x'$ is fresh, $\fresh x\notin U$ and from $U \cap \ur{\Gamma, x\mapsto e}{\sDup x}= \emptyset$ we have $U \cap \ur{\Gamma,x\mapsto e, \fresh x \mapsto e}{\fresh x}=\emptyset$, so the statement follows from the inductive case.
+Clearly $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma, x\mapsto e, \fresh x \mapsto \hat e$. Also,
+\begin{align*}
+\ur{\Gamma,x\mapsto e, \fresh x\mapsto \hat e}{\fresh x}
+&= \ur{\Gamma, x\mapsto e, \fresh x\mapsto \hat e}{\hat e} \cup \{\fresh x\}\\
+&= \ur{\Gamma, x\mapsto e}{e} \cup \{\fresh x\}\\
+&\subseteq \ur{\Gamma, x\mapsto e}{\sDup x} \cup \{\fresh x\}.
+\end{align*}
+As $x'$ is fresh, $\fresh x\notin U$ and from $U \cap \ur{\Gamma, x\mapsto e}{\sDup x}= \emptyset$ we have $U \cap \ur{\Gamma,x\mapsto e, \fresh x \mapsto \hat e}{\fresh x}=\emptyset$, so the first statement follows from the inductive case.
+
+The second statement follows immediately as $\fresh x$ is fresh.
 \case{$\sDeepDup x$}
-Let $\Gamma' = \Gamma, x\mapsto e, \fresh x\mapsto e[\fresh y_i/y_i], \fresh y_i \mapsto \sDeepDup y_i$.
+Let $\Gamma' = \Gamma, x\mapsto e, \fresh x\mapsto \hat e[\fresh y_i/y_i], \fresh y_i \mapsto \sDeepDup y_i$.
 Recall that $\ufv {\sDeepDup x}=\emptyset$ and $\ufv{e} \subseteq \fv{e}$. So 
 \begin{align*}
 \ur{\Gamma'}{\fresh x}
-&= \{\fresh x\} \cup \ur{\Gamma'}{e[\fresh y_i/y_i]} \\
+&= \{\fresh x\} \cup \ur{\Gamma'}{\hat e[\fresh y_i/y_i]} \\
 &= \{\fresh x\} \cup \mu V. V
 \begin{aligned}[t]
-&\cup \ufv{e[\fresh y_i / y_i]}\\
-&\cup \textstyle\bigcup_{z \in \ufv{e[\fresh y_i / y_i]}} \ur{\Gamma'}{\Gamma' z}
+&\cup \ufv{\hat e[\fresh y_i / y_i]}\\
+&\cup \textstyle\bigcup_{z \in \ufv{\hat e[\fresh y_i / y_i]}} \ur{\Gamma'}{\Gamma' z}
 \end{aligned}\\
 &\subseteq \{\fresh x\} \cup \mu V. V \cup \{\fresh y_i\}_i \cup \textstyle\bigcup_{i} \ur{\Gamma'}{\Gamma' \fresh y_i} \\
 &= \{\fresh x\} \cup \mu V. V \cup \{\fresh y_i\}_i \cup \textstyle\bigcup_{i} \ur{\Gamma'}{\sDeepDup {y_i}}\\
 &= \{\fresh x\} \cup \mu V. V \cup \{\fresh y_i\}_i  \\
 &= \{\fresh x\} \cup \{\fresh y_i\}_i
 \end{align*}
-and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyset$. Clearly, $\Gamma_0 \subseteq (\Gamma, x\mapsto e) \subseteq \Gamma'$, so the statement follows from the inductive case.
+and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyset$. Clearly, $\Gamma_0 \subseteq (\Gamma, x\mapsto e) \subseteq \Gamma'$, so the  first statement follows from the inductive case.
+
+The second statement follows immediately as the added variables are fresh.
 \end{proof}
 
 \section{The prototype implementation}
