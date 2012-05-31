@@ -217,32 +217,21 @@ More concretely with $d=4$, $b=4$, \li-type S = Word32- and a very cheap \li-suc
 \label{fig:stats}
 \end{figure*}
 
-\begin{figure*}
-\centering
-{
-\sffamily
-\begin{tikzpicture}
-[level/.style={sibling distance=20mm/2^#1,level distance=6mm},
-every node/.style={inner sep=1pt},
-solve/.style={draw,circle,inner sep=1pt},
-rate/.style={draw,rectangle,inner sep=2pt},
-%every path/.style={->},
-]
-\matrix[column sep={5mm},row sep=4mm] (matrix) {
-\node[left]{\rmfamily original:};
-&
+\newcommand{\thefirstevaluationmatrix}{
+\node[right] {\rmfamily original:};
+\&
 \node[solve] (root) {T};
 \draw (root.north) -- +(0mm,2mm);
-&
+\&
 
-&
+\&
 
 \node[solve] (root) {N}
 child {node [rate] {T}}
 child {node  {T}};
 \draw (root.north) -- +(0mm,2mm);
 
-&
+\&
 \node[solve] (root) {N}
 child {node [rate] {N}
 	child {node  {N} child {node {T}} child {node {T}}}
@@ -251,7 +240,7 @@ child {node [rate] {N}
 child {node  {T}};
 \draw (root.north) -- +(0mm,2mm);
 
-&
+\&
 \node[solve] (root) {N}
 child {node  {N}
 	child {node  {N} child {node {T}} child {node {T}}}
@@ -264,7 +253,7 @@ child {node[rate]  {N}
 ;
 \draw (root.north) -- +(0mm,2mm);
 
-&
+\&
 
 \node (root) {N}
 child {node  {N}
@@ -278,17 +267,17 @@ child {node [solve] {N}
 \draw (root.north) -- +(0mm,2mm);
 
 \\
-\node[left]{\rmfamily \textsf{solveDup}:};
-&
+\node[right]{\rmfamily \textsf{solveDup}:};
+\&
 \node[solve] (root) {T};
 \draw (root.north) -- +(0mm,2mm);
-&
+\&
 
 \node  at (-6mm,0mm) (root) {T};
 \draw (root.north) -- +(0mm,2mm);
 \node[solve] (root2) {T};
 \draw[double] (root) -- (root2);
-&
+\&
 
 \node  at (-6mm,0mm) (root) {T};
 \draw (root.north) -- +(0,2mm);
@@ -297,7 +286,7 @@ child {node [rate] {T}}
 child {node  {T}};
 \draw[double] (root) -- (root2);
 
-&
+\&
 \node at (-6mm,0mm)  (root) {T};
 \draw (root.north) -- +(0,2mm);
 \node[solve](root2) {N}
@@ -309,7 +298,7 @@ child {node  {T}};
 \draw (root.north) -- +(0,2mm);
 \draw[double] (root) -- (root2);
 
-&
+\&
 \node at (-6mm,0mm)  (root) {T};
 \draw (root.north) -- +(0,2mm);
 \node[solve](root2) {N}
@@ -325,7 +314,7 @@ child {node [rate] {N}
 \draw (root.north) -- +(0,2mm);
 \draw[double] (root) -- (root2);
 
-&
+\&
 
 \node  at (-6mm,0mm) (root) {T};
 \draw (root.north) -- +(0,2mm);
@@ -342,18 +331,18 @@ child {node[solve,black] {N}
 \draw[gray,double] (root) -- (root2);
 
 \\
-\node[left]{\rmfamily \textsf{rateDup}:};
-&
+\node[right]{\rmfamily \textsf{rateDup}:};
+\&
 \node[solve] (root) {T};
 \draw (root.north) -- +(0mm,2mm);
-&
+\&
 
 \node[solve] (root) {N}
 child {node [rate] {T}}
 child {node  {T}};
 \draw (root.north) -- +(0mm,2mm);
 
-&
+\&
 \node[solve] (root) {N}
 child {node (rate) {T}}
 child {node  {T}};
@@ -362,7 +351,7 @@ child {node  {T}};
 \draw[double] (rate) -- (rate2);
 
 
-&
+\&
 \node[solve] (root) {N}
 child {node (rate) {T}
  +(6mm,0) node[rate] (rate2) {N}
@@ -373,7 +362,7 @@ child {node  {T}};
 \draw (root.north) -- +(0mm,2mm);
 \draw[double] (rate) -- (rate2);
 
-&
+\&
 \node[solve] (root) {N}
 child {node (rate') {T}
  +(6mm,0) node[gray] (rate'2) {N}
@@ -390,7 +379,7 @@ child {node (rate) {T}
 \draw[double] (rate) -- (rate2);
 \draw[double,gray] (rate') -- (rate'2);
 
-&
+\&
 
 \node (root) {N}
 child {node (t1) {T}
@@ -408,74 +397,15 @@ child {node [solve] (t2) {T}
 \draw[gray,double] (t2) -- (t2');
 \\
 }
-;
 
-\path (matrix.south west)
-%+(0,10mm)
-node [below right] {
-\parbox{88mm}{
-\rmfamily
-%\textbf{Legend:}
-%\\
-\textsf{T}: thunk, \textsf{N}: node, $=$: dup’ed closure,
- \textcolor{gray}{garbage},
-\\
-\begin{tikzpicture}[baseline=(n.base)]
-\node[solve] (n) {T};
-\end{tikzpicture}:
- current argument of solve,
- %\\
-\begin{tikzpicture}[baseline=(n.base)]
-\node[rate] (n) {T};
-\end{tikzpicture}:
- current argument of rate
-}
-};
-\end{tikzpicture}
-}
-\caption{The heap during original and \textsf{dup}’ed evaluation}
-\label{fig:evaluation}
-\end{figure*}
-
-We want to improve the space performance of the program in the example and thus, due to the saved work in the garbage collector, also the runtime performance. In the following, we use \li-dup-, first wrapping the argument of \li-solve-, then the argument of \li-rate-, and \li-deepDup-. We also try two variants that work without new primitives but require refactoring the generating code. The statistics are collected in Figure \ref{fig:stats}, where all six strategies are applied to an otherwise unreferenced tree first and then to a tree with a live reference, either unevaluated, wrapped in another thunk, partly evaluated or fully evaluated.
-
-
-\subsection{Using dup}
-
-We now modify the example to use our new primitives. There are a few choices in doing so, with different trade-offs. One candidate for \li-dup-ifying is the function \li-solve-: We know that the parameter \li-t- to \li-solve- is an unevaluated expression, and decoupling that from the \li-t- that we pass to \li-doSomethingElseWith- will allow the garbage collector to clean up the tree as \li-solve- proceeds to process it (Figure \ref{fig:evaluation}, second row). So we wrap \li-solve- in \li-solveDup- and use that in \li-main-.
-\begin{haskell}
-solveDup t = case dup t of Box t' -> solve t'
-\end{haskell}
-And indeed, we have almost achieved the performance of the original program without sharing: \stats{stats:SolveDup:Shared:mem}~MB and \stats{stats:SolveDup:Shared:time} seconds.
-
-
-Another candidate for \li-dup-ifying is the function \li-rate-:
-As this is the function whose return value is taken into account when deciding whether to pick the argument or not, we know that in most cases, its argument will not be used any more. Therefore, by creating a wrapper \li-rateDup- that duplicates the argument, and using that in \li-solve-, we allow for the argument and all its children to be garbage collected once \li-rate- has finished.
-\begin{haskell}
-rateDup t = case dup t of Box t' -> rate t'
-\end{haskell}
-
-Both the runtime and the memory footprint of the program are greatly reduced: It uses \stats{stats:RateDup:Shared:mem}~MB of memory and \stats{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason is that with \li-rate- wrapped in \li-dup-, the first child of the node under inspection of \li-solve- can be freed already when its next child is evaluated by \li-rate- (Figure \ref{fig:evaluation}, last row, second-to-last column), so even less work needs to be done by the copying garbage collector.
-
-\subsection{Using deepDup}
-\begin{figure*}
-\centering
-{
-\sffamily
-\begin{tikzpicture}
-[level/.style={sibling distance=20mm/2^#1,level distance=6mm},
-every node/.style={inner sep=1pt},
-solve/.style={draw,circle,inner sep=1pt},
-rate/.style={draw,rectangle,inner sep=2pt},
-]
-\matrix[column sep={5mm},row sep=4mm] (matrix) {
-\node[left]{\rmfamily \textsf{solveDup}:};
-&
+\newcommand{\thesecondevaluationmatrix}{
+\node[right]{\rmfamily \textsf{solveDup}:};
+\&
 \node[solve] (root) {N}
 child {node  {T}}
 child {node  {T}};
 \draw (root.north) -- +(0mm,2mm);
-&
+\&
 
 \node  at (-6mm,0mm) (root) {N};
 \draw (root.north) -- +(0mm,2mm);
@@ -485,7 +415,7 @@ child {node  {T}};
 \draw[double] (root) -- (root2);
 \draw (root) -- (root2-1);
 \draw (root) -- (root2-2);
-&
+\&
 
 \node  at (-6mm,0mm) (root) {N};
 \draw (root.north) -- +(0,2mm);
@@ -496,7 +426,7 @@ child {node  {T}};
 \draw (root) -- (root2-1);
 \draw (root) -- (root2-2);
 
-&
+\&
 \node at (-6mm,0mm)  (root) {N};
 \draw (root.north) -- +(0,2mm);
 \node[solve](root2) {N}
@@ -510,7 +440,7 @@ child {node  {T}};
 \draw (root) -- (root2-1);
 \draw (root) -- (root2-2);
 
-&
+\&
 
 \node  at (-6mm,0mm) (root) {N};
 \draw (root.north) -- +(0,2mm);
@@ -528,7 +458,7 @@ child {node[rate] {N}
 \draw (root) -- (root2-1);
 \draw (root) -- (root2-2);
 
-&
+\&
 
 \node  at (-6mm,0mm) (root) {N};
 \draw (root.north) -- +(0,2mm);
@@ -549,13 +479,13 @@ child {node[solve,black] {N}
 \draw (root) -- (root2-2);
 
 \\
-\node[left]{\rmfamily \textsf{solveDeepDup}:};
-&
+\node[right]{\rmfamily \textsf{solveDeepDup}:};
+\&
 \node[solve] (root) {N}
 child {node  {T}}
 child {node  {T}};
 \draw (root.north) -- +(0mm,2mm);
-&
+\&
 
 \node  at (-6mm,0mm) (root) {N}
 child {node  {T}}
@@ -569,7 +499,7 @@ child {node  {D}};
 \draw[->] (root2-1) -- (root-1);
 \draw[->] (root2-2) -- (root-2);
 
-&
+\&
 
 \node  at (-6mm,0mm) (root) {N}
 child {node  {T}}
@@ -583,7 +513,7 @@ child {node  {D}};
 \draw[double] (root2-1) -- (root-1);
 \draw[->] (root2-2) -- (root-2);
 
-&
+\&
 
 \node  at (-6mm,0mm) (root) {N}
 child {node  {T}}
@@ -600,7 +530,7 @@ child {node  {D}};
 \draw[double] (root2-1) -- (root-1);
 \draw[->] (root2-2) -- (root-2);
 
-&
+\&
 \node  at (-6mm,0mm) (root) {N}
 child {node  {T}}
 child {node  {T}}
@@ -625,7 +555,7 @@ child {node[rate]  {N}
 \draw[double] (root2-2) -- (root-2);
 
 
-&
+\&
 \node  at (-6mm,0mm) (root) {N}
 child {node  {T}}
 child {node  {T}}
@@ -651,7 +581,54 @@ child {node[solve]  {N}
 
 \\
 }
-;
+
+% Two figures in one, horrible hack to ensure that the matrix is consistently
+% spaced between the two figures.
+\begin{figure*}
+\centering
+{
+\sffamily
+\begin{tikzpicture}
+[level/.style={sibling distance=20mm/2^#1,level distance=6mm},
+every node/.style={inner sep=1pt},
+solve/.style={draw,circle,inner sep=1pt},
+rate/.style={draw,rectangle,inner sep=2pt},
+%every path/.style={->},
+]
+
+\matrix[column sep={4mm},row sep=4mm, ampersand replacement=\&] (matrix) {
+\thefirstevaluationmatrix
+\begin{scope}
+\path[use as bounding box] (0pt,-3em) -- (0pt,0em);
+\node[above right] (caption) {};
+\end{scope}
+\\
+\thesecondevaluationmatrix
+};
+
+\path (caption.north west)
+%+(0,10mm)
+node [above right] {
+\parbox{88mm}{
+\rmfamily
+%\textbf{Legend:}
+%\\
+\textsf{T}: thunk, \textsf{N}: node, $=$: dup’ed closure,
+ \textcolor{gray}{garbage},
+\\
+\begin{tikzpicture}[baseline=(n.base)]
+\node[solve] (n) {T};
+\end{tikzpicture}:
+ current argument of solve,
+ %\\
+\begin{tikzpicture}[baseline=(n.base)]
+\node[rate] (n) {T};
+\end{tikzpicture}:
+ current argument of rate
+\\
+}
+};
+
 \path (matrix.south west)
 %+(0,10mm)
 node [above right] {
@@ -662,11 +639,37 @@ node [above right] {
 \textsf{D}: \textsf{deepDup} application thunk
 }
 };
-\end{tikzpicture}
-}
+\end{tikzpicture}}\\
+\raisebox{21em}[0pt][0pt]{%
+\parbox{\linewidth}{
+\caption{The heap during original and \textsf{dup}’ed evaluation}
+\label{fig:evaluation}
+}}\\
 \caption{Comparing \textsf{solveDup} and \textsf{solveDeepDup} applied to a partly evaluated tree}
 \label{fig:deepevaluation}
 \end{figure*}
+
+We want to improve the space performance of the program in the example and thus, due to the saved work in the garbage collector, also the runtime performance. In the following, we use \li-dup-, first wrapping the argument of \li-solve-, then the argument of \li-rate-, and \li-deepDup-. We also try two variants that work without new primitives but require refactoring the generating code. The statistics are collected in Figure \ref{fig:stats}, where all six strategies are applied to an otherwise unreferenced tree first and then to a tree with a live reference, either unevaluated, wrapped in another thunk, partly evaluated or fully evaluated.
+
+
+\subsection{Using dup}
+
+We now modify the example to use our new primitives. There are a few choices in doing so, with different trade-offs. One candidate for \li-dup-ifying is the function \li-solve-: We know that the parameter \li-t- to \li-solve- is an unevaluated expression, and decoupling that from the \li-t- that we pass to \li-doSomethingElseWith- will allow the garbage collector to clean up the tree as \li-solve- proceeds to process it (Figure \ref{fig:evaluation}, second row). So we wrap \li-solve- in \li-solveDup- and use that in \li-main-.
+\begin{haskell}
+solveDup t = case dup t of Box t' -> solve t'
+\end{haskell}
+And indeed, we have almost achieved the performance of the original program without sharing: \stats{stats:SolveDup:Shared:mem}~MB and \stats{stats:SolveDup:Shared:time} seconds.
+
+
+Another candidate for \li-dup-ifying is the function \li-rate-:
+As this is the function whose return value is taken into account when deciding whether to pick the argument or not, we know that in most cases, its argument will not be used any more. Therefore, by creating a wrapper \li-rateDup- that duplicates the argument, and using that in \li-solve-, we allow for the argument and all its children to be garbage collected once \li-rate- has finished.
+\begin{haskell}
+rateDup t = case dup t of Box t' -> rate t'
+\end{haskell}
+
+Both the runtime and the memory footprint of the program are greatly reduced: It uses \stats{stats:RateDup:Shared:mem}~MB of memory and \stats{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason is that with \li-rate- wrapped in \li-dup-, the first child of the node under inspection of \li-solve- can be freed already when its next child is evaluated by \li-rate- (Figure \ref{fig:evaluation}, last row, second-to-last column), so even less work needs to be done by the copying garbage collector.
+
+\subsection{Using deepDup}
 
 \label{sec:deepdup}
 Using \li-dup- is a fragile business and requires the programmer to have a very good idea about what is happening at runtime. The approach above is fragile and will fail, for example, in two common situations: If the argument to \li-solveDup- is not just the tree \li-t- but rather an expression that references \li-t-, e.g.\ \li-fstChild t- where \li!fstChild :: Tree -> Tree! does what its name indicates, then \li-dup- will only copy this unevaluated expression, but both copies will reference the same unevaluated expression for~\li-t-, and we are back at the original performance (\stats{stats:SolveDup:SharedThunk:mem}~MB, \stats{stats:SolveDup:SharedThunk:time} seconds).
