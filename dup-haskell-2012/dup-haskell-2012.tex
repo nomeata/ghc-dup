@@ -970,7 +970,7 @@ Let $\Gamma_0$ be a heap and $U= \dom\Gamma_0$ its domain. If $\sred\Gamma e \De
 
 To be able to prove this lemma, we need another technical property:
 \begin{lemma}
-If $\sred\Gamma e \Delta z$, then $U \cap \ur\Gamma y = \emptyset$ implies $U\cap \ur\Delta y = \emptyset$ for every $y\in \dom\Gamma$.
+If $\sred\Gamma e \Delta z$, $\Gamma_0 \subseteq \Gamma$ and $U \cap \ur\Gamma e = \emptyset$ then $U \cap \ur\Gamma y = \emptyset$ implies $U\cap \ur\Delta y = \emptyset$ for every $y\in \dom\Gamma$.
 \label{lem:varpres}
 \end{lemma}
 
@@ -1041,11 +1041,9 @@ and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyse
 \case{$\sLam xe$ and $\sApp e x$}
 Immediate.
 \case{$x$}
-If $x \notin \ur{\Gamma,x\mapsto e} y$, then $\ur{\Gamma,x\mapsto e} y = \ur{\Gamma} y$ and from the induction hypothesis we know $U\cap\ur{\Delta}y=\emptyset$ and hence $U\cap\ur{\Delta,x\mapsto z} y =\emptyset$.
-
-If $x\in \ur{\Gamma,x\mapsto e}y$, then $\ur{\Gamma,x\mapsto e} y = \ur{\Gamma} y \cup \ur{\Gamma,x\mapsto e}x$ and the statement follows from the induction hypothesis and Lemma \ref{lem:deepdup} applied to the inductive case.
+As $\ur\Gamma y \subseteq \ur{\Gamma,x\mapsto e} y$ holds we obtain $U\cap\ur{\Delta}x=\emptyset$ from the induction hypothesis and  $U\cap \ur{\Delta} z = \emptyset$ from Lemma \ref{lem:deepdup} applied to the inductive case $\sred\Gamma e \Delta z$. Together with $\ur{\Delta,x\mapsto z}y \subseteq \ur{\Delta}y \cup \ur{\Delta}z$ this implies the statement.
 \case{$\sLet {x_1=e_1,\ldots,x_n=e_n}e$}
-For $y\in \dom\Gamma$ the unreachable set of $y$ cannot contain any of $x_1,\ldots,x_n$ so from $\ur\Gamma{y} = \ur{\Gamma'}y$ the statement follows by induction.
+For $y\in \dom\Gamma$ the unreachable set of $y$ cannot contain any of $x_1,\ldots,x_n$, as heaps are distinctly named, so we have $\ur\Gamma{y} = \ur{\Gamma'}y$ and the statement follows by induction.
 \case{$\sDup x$ and $\sDeepDup x$}
 The statement follows immediately as the added variables are fresh.
 \end{proof}
