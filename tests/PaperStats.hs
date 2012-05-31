@@ -134,7 +134,7 @@ regularSolver s = Run
 data RunDesc = Original 
 	| SolveDup 
 	| RateDup 
---	| RateRecDup 
+	| RateRecDup 
 	| SolveDeepDup 
 	| Unit 
 	| Church
@@ -154,7 +154,7 @@ runs = [
     (Original, regularSolver solve),
     (SolveDup, regularSolver solveDup),
     (RateDup, regularSolver solveRateDup),
-    (RateRecDup, regularSolver solveRateRecDup),
+--    (RateRecDup, regularSolver solveRateRecDup),
     (SolveDeepDup, regularSolver solveDeepDup),
     (Unit, Run
         utree
@@ -221,22 +221,27 @@ mainRun n variant k = do
                 Shared -> do
                     let t = gTree k
                     gSolve t
+                    performGC
                     gDosomethingwith t
                 SharedThunk -> do
                     let t = gTree k
                     let t' = gFirstChild t
                     gSolve t'
+                    performGC
                     gDosomethingwith t
                 SharedEvaled -> do
                     let t = gTree k
                     gFirstChild t `seq` return ()
+                    performGC
                     gSolve t
+                    performGC
                     gDosomethingwith t
                 SharedFull -> do
                     let t = gTree k
                     gEvalAll t
                     performGC
                     gSolve t
+                    performGC
                     gDosomethingwith t
     performGC
     stats <- getGCStats
