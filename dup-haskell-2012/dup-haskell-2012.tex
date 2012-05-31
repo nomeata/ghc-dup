@@ -1,7 +1,10 @@
 \documentclass[preprint]{sigplanconf}
 
 
+\usepackage[T1]{fontenc}
+\usepackage[safe]{tipa} % for \textlambda
 \usepackage[utf8]{inputenc}
+\usepackage[english]{babel}
 \usepackage{etex}
 \usepackage{stmaryrd}
 \usepackage{amsmath}
@@ -17,6 +20,8 @@
 \usepackage{microtype}
 \usepackage{booktabs}
 \usepackage{mathpartir}
+\usepackage{upgreek}
+
 \newcommand\pfun{\mathrel{\ooalign{\hfil$\mapstochar\mkern5mu$\hfil\cr$\to$\cr}}}
 
 \usepackage{hyperref}
@@ -92,7 +97,7 @@
 \copyrightyear{2012} 
 \copyrightdata{Joachim Breitner}
 
-\titlebanner{---Work in Progress---}
+%\titlebanner{---Work in Progress---}
 \preprintfooter{Joachim Breitner: dup -- Explicit un-sharing in Haskell}
 \title{dup -- Explicit un-sharing in Haskell}
 %\subtitle
@@ -761,6 +766,7 @@ We extend Launchbury’s semantics for normalized lambda calculus with our two p
 \newcommand{\sHeap}{\text{Heap}}
 \newcommand{\sVal}{\text{Val}}
 \newcommand{\sApp}[2]{#1\ #2}
+\newcommand{\sLam}[2]{\text{\textlambda} #1.\, #2}
 \newcommand{\sDup}[1]{\sApp \mdup #1}
 \newcommand{\sDeepDup}[1]{\sApp \mdeepDup #1}
 \newcommand{\sLet}[2]{\text{\textsf{let}}\ #1\ \text{\textsf{in}}\ #2}
@@ -776,7 +782,7 @@ x,y &\in \sVar \\
 e &\in
 \sExp &&\Coloneqq
 \begin{aligned}[t]&
-\lambda x . e
+\sLam x e
 \mid \sApp e x
 \mid x \mid
 \\&
@@ -785,7 +791,7 @@ e &\in
 \sDup e \mid \sDeepDup e
 \end{aligned}\\
 \Gamma, \Delta, \Theta &\in \sHeap &&= \sVar \pfun \sExp \\
-z &\in \sVal &&\Coloneqq \lambda x . e
+z &\in \sVal &&\Coloneqq \sLam x e
 \end{alignat*}
 
 In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $x'$ and $y_i'$ are fresh.
@@ -796,11 +802,11 @@ In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{V
 \begin{array}{@{}c@{}l@{}}
 \inferrule
 {}
-{\sred{\Gamma}{\lambda x.e}{\Gamma}{\lambda x.e}}
+{\sred{\Gamma}{\sLam xe}{\Gamma}{\sLam xe}}
 & \sRule{Lam}
 \\\\
 \inferrule
-{\sred{\Gamma}e{\Delta}{\lambda y . e'}\\ \sred{\Delta}{e'[x/y]}{\Theta}{z}}
+{\sred{\Gamma}e{\Delta}{\sLam y e'}\\ \sred{\Delta}{e'[x/y]}{\Theta}{z}}
 {\sred\Gamma{\sApp e x}\Theta z}
 & \sRule{App}
 \\\\
@@ -944,12 +950,12 @@ Let $\Gamma_0$ be a heap and $U= \dom\Gamma_0$ its domain. If $\sred\Gamma e \De
 \end{lemma}
 \begin{proof}
 The proof is by induction on the structure of the derivation $\sred\Gamma e \Delta z$.
-\case{$\lambda x.e$}
+\case{$\sLam xe$}
 Immediate.
 \case{$\sApp e x$}
-From $\ufv{\sApp e x} = \ufv{e} \cup \{x\}$ and $U \cap \ur\Gamma{\sApp e x}= \emptyset$ we have $x\notin U$ and $U \cap \ur\Gamma e = \emptyset$. From the left inductive case we obtain $\Gamma_0 \subseteq \Delta$ and (i) $U \cap \ur\Gamma {\lambda y. e'}= \emptyset$.
+From $\ufv{\sApp e x} = \ufv{e} \cup \{x\}$ and $U \cap \ur\Gamma{\sApp e x}= \emptyset$ we have $x\notin U$ and $U \cap \ur\Gamma e = \emptyset$. From the left inductive case we obtain $\Gamma_0 \subseteq \Delta$ and (i) $U \cap \ur\Gamma {\sLam y. e'}= \emptyset$.
 
-From $\ufv{e'[x/y]} \subseteq (\ufv{e'}\setminus \{y\}) \cup \{x\} = \ufv{\lambda y.e'} \cup \{x\}$, (i) and $x\notin U$ we have $U \cap \ur\Gamma{e'[x/y]} = \emptyset$. With $\Gamma_0 \subseteq \Delta$ the statement follows from the right inductive case.
+From $\ufv{e'[x/y]} \subseteq (\ufv{e'}\setminus \{y\}) \cup \{x\} = \ufv{\sLam ye'} \cup \{x\}$, (i) and $x\notin U$ we have $U \cap \ur\Gamma{e'[x/y]} = \emptyset$. With $\Gamma_0 \subseteq \Delta$ the statement follows from the right inductive case.
 \case{$x$}
 As $x \in \ur{\Gamma,x \mapsto e} x$ and removing a variable from a heap does not increase unreachable sets, $\ur\Gamma e \subseteq \ur{\Gamma, x\mapsto e}e \subseteq \ur{\Gamma,x\mapsto e} x$. Furthermore, $x \notin U$, so $\Gamma_0 \subseteq \Gamma$ and we can invoke the inductive case to obtain $\Gamma_0 \subseteq \Delta$ and $U \cap \ur\Delta z = \emptyset$. As $\Delta \subseteq (\Delta, x \mapsto z)$, $\ufv{z} = \ufv{\hat z}$ and $\ur \Delta z = \ur {\Delta, x \mapsto z} {\hat z}$, the statement follows.
 \case{$\sLet {x_1=e_1,\ldots,x_n=e_n}e$}
