@@ -1,4 +1,4 @@
-personal_ws-1.1 en 118 
+personal_ws-1.1 en 121 
 runtime
 Telekom
 showstringspaces
@@ -9,15 +9,17 @@ unsharing
 commentstyle
 ap
 sep
-Sep
 toCTree
 ptr
+optimizations
 ptrs
 tbl
 maximumBy
 Monad
 fc
+unboxed
 succs
+olegchurchenc
 len
 nonumberplain
 unprevented
@@ -28,6 +30,7 @@ cmm
 multipart
 fv
 dup'ed
+churchenc
 snd
 SharedThunk
 Bool
@@ -37,8 +40,8 @@ mem
 fullflexible
 applicative
 solveDup
-deepDup
 dom
+deepDup
 unevaluated
 nats
 ufv
@@ -61,7 +64,6 @@ elems
 spaceleakbug
 flexiblecolumns
 ghc
-GHC
 LLVM
 dup
 upd
@@ -72,25 +74,25 @@ abbrvnat
 dupClosure
 clos
 getArgs
+hesselink
 un
 fromCTree
 WDS
-hesselink
 Karlsruhe
 UNode
 ur
+xe
 CTree
 ctree
 getLine
 goto
 TODO
-Deutsche
 sampson
+Deutsche
 ratedChilds
 xs
 texcl
 unshared
-Unshared
 combinators
 forall
 ifying
@@ -116,4 +118,5 @@ StgAP
 putStr
 RET
 unshareable
+ing
 calc
