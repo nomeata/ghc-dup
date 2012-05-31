@@ -964,27 +964,27 @@ Note that $\ufv e \subseteq \ufv {e'}$ implies $\ur\Gamma e \subseteq \ur\Gamma 
 
 \begin{lemma}
 \label{lem:deepdup}
-Let $\Gamma_0$ be a heap and $U= \dom\Gamma_0$ its domain. If $\sred\Gamma e \Delta z$, then the following two statements hold:
-\begin{itemize}
-\item $\Gamma_0 \subseteq \Gamma$ and $U \cap \ur \Gamma e = \emptyset$ implies
- $\Gamma_0 \subseteq \Delta$ and $U \cap \ur \Delta z=\emptyset$ and
-\item $U \cap \ur\Gamma x = \emptyset$ implies $U\cap \ur\Delta x = \emptyset$ for $x\in \dom\Gamma$.
-\end{itemize}
+Let $\Gamma_0$ be a heap and $U= \dom\Gamma_0$ its domain. If $\sred\Gamma e \Delta z$, then $\Gamma_0 \subseteq \Gamma$ and $U \cap \ur \Gamma e = \emptyset$ implies
+ $\Gamma_0 \subseteq \Delta$ and $U \cap \ur \Delta z=\emptyset$. 
 \end{lemma}
-\begin{proof}
-The proof is by induction on the structure of the derivation $\sred\Gamma e \Delta z$.
+
+To be able to prove this lemma, we need another technical property:
+\begin{lemma}
+If $\sred\Gamma e \Delta z$, then $U \cap \ur\Gamma y = \emptyset$ implies $U\cap \ur\Delta y = \emptyset$ for every $y\in \dom\Gamma$.
+\label{lem:varpres}
+\end{lemma}
+
+Both lemmas need to be proven simultaneously and by induction on the structure of the derivation $\sred\Gamma e \Delta z$. We give the two proof separately nevertheless and pay attention to apply the other lemma only on the hypothesizes of the current judgment.
+
+\begin{proof}[of Lemma \ref{lem:deepdup}]
 \case{$\sLam xe$}
 Immediate.
 \case{$\sApp e x$}
-From $\ur\Gamma{\sApp e x} = \ur\Gamma{e} \cup \ur\Gamma{x}$ and the assumption $U \cap \ur\Gamma{\sApp e x}= \emptyset$ we have $U \cap \ur\Gamma e = \emptyset$ and $U \cap \ur\Gamma x = \emptyset$. From the first inductive case we obtain $\Gamma_0 \subseteq \Delta$, (i) $U \cap \ur\Delta {\sLam y e'}= \emptyset$ and (ii) $U \cap \ur\Delta{x} = \emptyset$.
+From $\ur\Gamma{\sApp e x} = \ur\Gamma{e} \cup \ur\Gamma{x}$ and the assumption $U \cap \ur\Gamma{\sApp e x}= \emptyset$ we have $U \cap \ur\Gamma e = \emptyset$ and $U \cap \ur\Gamma x = \emptyset$. From the first induction hypothesis we obtain $\Gamma_0 \subseteq \Delta$, (i) $U \cap \ur\Delta {\sLam y e'}= \emptyset$ and, by invoking Lemma \ref{lem:varpres} on $x$, (ii) $U \cap \ur\Delta{x} = \emptyset$.
 
-As $\ur\Delta{e'[x/y]} \subseteq \ur\Delta{\sLam ye'} \cup \ur\Delta{x}$, (i) and (ii) imply $U \cap \ur\Delta{e'[x/y]} = \emptyset$. With $\Gamma_0 \subseteq \Delta$ we obtain $\Gamma_0\subseteq\Theta$ and $U\cap \ur\Theta z = \emptyset$ from the second inductive case.
-
-These second statement of Lemma \ref{lem:deepdup} follows directly by inductively.
+As $\ur\Delta{e'[x/y]} \subseteq \ur\Delta{\sLam ye'} \cup \ur\Delta{x}$, (i) and (ii) imply $U \cap \ur\Delta{e'[x/y]} = \emptyset$. With $\Gamma_0 \subseteq \Delta$ we obtain $\Gamma_0\subseteq\Theta$ and $U\cap \ur\Theta z = \emptyset$ from the second induction hypothesis.
 \case{$x$}
-As $x \in \ur{\Gamma,x \mapsto e} x$ and removing a variable from a heap does not increase unreachable sets, $\ur\Gamma e \subseteq \ur{\Gamma, x\mapsto e}e \subseteq \ur{\Gamma,x\mapsto e} x$. Furthermore, $x \notin U$, so $\Gamma_0 \subseteq \Gamma$ and we can invoke the inductive case to obtain $\Gamma_0 \subseteq \Delta$ and $U \cap \ur\Delta z = \emptyset$. As $\Delta \subseteq (\Delta, x \mapsto z)$, $\ufv{z} = \ufv{\hat z}$ and $\ur \Delta z = \ur {\Delta, x \mapsto z} {\hat z}$, the  first statement follows.
-
-The second statement follows directly by induction for variables other than $x$; for $x$ it follows from the first statement.
+As $x \in \ur{\Gamma,x \mapsto e} x$ and removing a variable from a heap does not increase unreachable sets, $\ur\Gamma e \subseteq \ur{\Gamma, x\mapsto e}e \subseteq \ur{\Gamma,x\mapsto e} x$. Furthermore, $x \notin U$, so $\Gamma_0 \subseteq \Gamma$ and we can invoke the induction hypothesis to obtain $\Gamma_0 \subseteq \Delta$ and $U \cap \ur\Delta z = \emptyset$. As $\Delta \subseteq (\Delta, x \mapsto z)$, $\ufv{z} = \ufv{\hat z}$ and $\ur \Delta z = \ur {\Delta, x \mapsto z} {\hat z}$, the statement follows.
 \case{$\sLet {x_1=e_1,\ldots,x_n=e_n}e$}
 For brevity, let $\Gamma' = \Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n$ and $e_{l} = \sLet {x_1=e_1,\ldots,x_n=e_n}e$.
 Clearly $\Gamma_0 \subseteq \Gamma \subseteq \Gamma'$.
@@ -1007,10 +1007,8 @@ Also, for each $e_* \in \{e_l,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \uf
 &= \ur{\Gamma} {e_l} \cup \{x_1,\ldots,x_n\}.
 \end{align*}
 As all bound variables are distinct from variables in the heap, no $x_i\in U$. From $U\cap \ur\Gamma {e_l}
-= \emptyset$, we have $U \cap \ur {\Gamma'} e = \emptyset$ and the first statement
-follows from the inductive case.
-
-For $x\in \dom\Gamma$ the unreachable set of $x$ cannot contain any of $x_1,\ldots,x_n$ so from $\ur\Gamma{x} = \ur{\Gamma'}x$ the second statement follows by induction.
+= \emptyset$, we have $U \cap \ur {\Gamma'} e = \emptyset$ and the statement
+follows from the induction hypothesis.
 \case{$\sDup x$}
 Clearly $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma, x\mapsto e, \fresh x \mapsto \hat e$. Also,
 \begin{align*}
@@ -1019,9 +1017,7 @@ Clearly $\Gamma_0 \subseteq \Gamma, x\mapsto e \subseteq \Gamma, x\mapsto e, \fr
 &= \ur{\Gamma, x\mapsto e}{e} \cup \{\fresh x\}\\
 &\subseteq \ur{\Gamma, x\mapsto e}{\sDup x} \cup \{\fresh x\}.
 \end{align*}
-As $x'$ is fresh, $\fresh x\notin U$ and from $U \cap \ur{\Gamma, x\mapsto e}{\sDup x}= \emptyset$ we have $U \cap \ur{\Gamma,x\mapsto e, \fresh x \mapsto \hat e}{\fresh x}=\emptyset$, so the first statement follows from the inductive case.
-
-The second statement follows immediately as $\fresh x$ is fresh.
+As $x'$ is fresh, $\fresh x\notin U$ and from $U \cap \ur{\Gamma, x\mapsto e}{\sDup x}= \emptyset$ we have $U \cap \ur{\Gamma,x\mapsto e, \fresh x \mapsto \hat e}{\fresh x}=\emptyset$, so the first statement follows from the induction hypothesis.
 \case{$\sDeepDup x$}
 Let $\Gamma' = \Gamma, x\mapsto e, \fresh x\mapsto \hat e[\fresh y_i/y_i], \fresh y_i \mapsto \sDeepDup y_i$.
 Recall that $\ufv {\sDeepDup x}=\emptyset$ and $\ufv{e} \subseteq \fv{e}$. So 
@@ -1038,9 +1034,20 @@ Recall that $\ufv {\sDeepDup x}=\emptyset$ and $\ufv{e} \subseteq \fv{e}$. So
 &= \{\fresh x\} \cup \mu V. V \cup \{\fresh y_i\}_i  \\
 &= \{\fresh x\} \cup \{\fresh y_i\}_i
 \end{align*}
-and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyset$. Clearly, $\Gamma_0 \subseteq (\Gamma, x\mapsto e) \subseteq \Gamma'$, so the  first statement follows from the inductive case.
+and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyset$. Clearly, $\Gamma_0 \subseteq (\Gamma, x\mapsto e) \subseteq \Gamma'$, so the  first statement follows from the induction hypothesis.
+\end{proof}
 
-The second statement follows immediately as the added variables are fresh.
+\begin{proof}[of Lemma \ref{lem:varpres}]
+\case{$\sLam xe$ and $\sApp e x$}
+Immediate.
+\case{$x$}
+If $x \notin \ur{\Gamma,x\mapsto e} y$, then $\ur{\Gamma,x\mapsto e} y = \ur{\Gamma} y$ and from the induction hypothesis we know $U\cap\ur{\Delta}y=\emptyset$ and hence $U\cap\ur{\Delta,x\mapsto z} y =\emptyset$.
+
+If $x\in \ur{\Gamma,x\mapsto e}y$, then $\ur{\Gamma,x\mapsto e} y = \ur{\Gamma} y \cup \ur{\Gamma,x\mapsto e}x$ and the statement follows from the induction hypothesis and Lemma \ref{lem:deepdup} applied to the inductive case.
+\case{$\sLet {x_1=e_1,\ldots,x_n=e_n}e$}
+For $y\in \dom\Gamma$ the unreachable set of $y$ cannot contain any of $x_1,\ldots,x_n$ so from $\ur\Gamma{y} = \ur{\Gamma'}y$ the statement follows by induction.
+\case{$\sDup x$ and $\sDeepDup x$}
+The statement follows immediately as the added variables are fresh.
 \end{proof}
 
 \section{The prototype implementation}
@@ -1153,7 +1160,7 @@ deepDupClosure {
 \subsection{Limitations of the implementation}
 \label{sec:shortcomings}
 
-Our implementation is but a prototype; it does not yet work in all situation. One large problem are statically allocated thunks: A value, say \li-nats = [0..]-, defined at the module level is compiled to a thunk with closure type \ci-THUNK_STATIC-, also called a constant applicative form (CAF), and receives special treatment by the garbage collector. Copying such a closure to the heap using the code above would make the garbage collector abort, as it does not expect a static thunk to be found on the heap. But it is not possible to change the type of the closure, as the info table containing the type lies directly next to the code. And in order to create a modified info table somewhere else, the code needs to be copied as well. Therefore, \li-dup- and \li-deepDup- currently does not work for static thunks. When it is passed such a thunk, it prints a warning and returns the original reference, retaining sharing.
+Our implementation is but a prototype; it does not yet work in all situations. One large problem are statically allocated thunks: A value, say \li-nats = [0..]-, defined at the module level is compiled to a thunk with closure type \ci-THUNK_STATIC-, also called a constant applicative form (CAF), and receives special treatment by the garbage collector. Copying such a closure to the heap using the code above would make the garbage collector abort, as it does not expect a static thunk to be found on the heap. But it is not possible to change the type of the closure, as the info table containing the type lies directly next to the code. And in order to create a modified info table somewhere else, the code needs to be copied as well. Therefore, \li-dup- and \li-deepDup- currently does not work for static thunks. When it is passed such a thunk, it prints a warning and returns the original reference, retaining sharing.
 
 It should be possible for \li-dup- to support static thunks with some additional information in the compiled code.  Currently, when execution enters a static thunk and the stack and heap checks have been passed, the thunk is replaced by an indirection into the heap and an update frame is pushed on the stack. If there was a way to jump over the code that sets up the indirection and update frame, e.g.\ via an alternative entry point included in the info table, \li-dup- could create a thunk on the heap that calls the static thunk via this route, effectively kicking off evaluation without affecting the original static thunk.  For \li-deepDup- things are more complicated, as references to static objects are not part of the heap object, but are scattered throughout the machine code. Moving these references to the heap would solve the issue here at hand, but is clearly too expensive.
 
