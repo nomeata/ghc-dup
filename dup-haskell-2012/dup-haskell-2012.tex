@@ -45,7 +45,7 @@
 \theorembodyfont{}
 \newtheorem{theorem}{Theorem}
 \newtheorem{lemma}[theorem]{Lemma}
-\theoremstyle{nonumberplain}
+\theoremstyle{nonumberbreak}
 \theoremheaderfont{\scshape}
 \theoremsymbol{\ensuremath{\blacksquare}}
 \theoremseparator{.}
@@ -178,14 +178,17 @@ value :: S -> Integer
 
 -- The search tree code
 data Tree = Node S [Tree]
+
 tree :: S -> Tree
 tree s = Node s (map tree (succs s))
-depth :: Int
+
 solve :: Tree -> [S]
 solve (Node n ts) = n : solve picked
   where
   rated = [ (t, rate depth t) | t <- ts ]
   picked = fst (maximumBy (comparing snd) rated)
+  depth = ...
+
 rate :: Tree -> Integer
 rate 0 (Node s _) = value s
 rate d (Node _ ts) = maximum (map (rate (d-1)) ts)
@@ -706,6 +709,7 @@ One needs to be careful, though, as some compiler optimizations can introduce un
 \begin{haskell}
 xs :: () -> [Int]
 xs () = [1..10000000]
+
 main = do
     print (last (xs ()))
     print (head (xs ()))
@@ -726,11 +730,13 @@ The required changes to the functions on trees are mechanical and guided by the 
 \subsection{Church encoding}
 \label{sec:church}
 
-An alternative is to restructure the program so that the value that must not be shared is not represented using data constructors but rather as a higher-order function \citep{churchenc,olegchurchenc}. This transformation is known as the Church encoding of a data type. For the tree in our running example, we would obtain the following type and conversion functions:
+An alternative is to restructure the program so that the value that must not be shared is not represented using data constructors but rather as a higher-order function \citep{churchenc,olegchurchenc}. This transformation is known as the Church encoding of a data type, or a variant thereof. For the algebraic tree data type in our running example, we would obtain the following type and conversion functions:
 \begin{haskell}
 type CTree = forall a. (S -> [a] -> a) -> a
+
 toCTree :: Tree -> CTree
 toCTree (Node s ts) f = f s $ map (\t -> toCTree t f) ts
+
 fromCTree :: CTree -> Tree
 fromCTree ct = ct Node
 \end{haskell}
@@ -763,6 +769,7 @@ The church encoding pattern shows good and predictable memory performance, but e
 
 Our primitives come with very small overhead when applied to data that is actually unshared, as we show in the first column. In fact, careful use of \li-dup- can improve performance noticeably even if only small pieces of data can be un-shared and thus freed quickly. While \li-dup- is subtle to use, \li-deepDup- is robust and its effect is more precisely defined, as shown in the next section.
 
+\pagebreak[3]
 \section{A natural semantics}
 \label{sec:semantics}
 
@@ -862,7 +869,7 @@ x\mapsto e,
 
 \newcommand{\dsem}[2]{\llbracket #1 \rrbracket_{#2}}
 \newcommand{\esem}[1]{\{\!\!\{#1\}\!\!\}}
-\newcommand{\case}[1]{\par\vspace{3pt}\noindent\textbf{Case:} #1\par}
+\newcommand{\case}[1]{\par\vspace{\standardvspace}\noindent\textbf{Case:} #1\par}
 
 Besides the natural semantics, Launchbury also defines a denotational semantics. He models values as a lifted function space and environments as functions from variables into values. He writes $\rho \le \rho'$  if $\rho'$ extends $\rho$. The expression $\dsem e \rho$ is the value of the expression $e$ in the environment $\rho$, $\esem \Gamma \rho$ is the environment $\rho$ updated by the values specified in the heap $\Gamma$. This is defined as a fixed point, as the heap may contain recursive references:
 \begin{multline*}
@@ -874,7 +881,8 @@ Besides the natural semantics, Launchbury also defines a denotational semantics.
 Launchbury proves his natural semantics to be correct with respect to the denotational semantics. 
 Naturally, we want to preserve this property. Our new primitives should be invisible to the denotational semantics, hence we extend the semantics function as follows:
 \begin{align*}
-\dsem{\sDup x}\rho \coloneqq \dsem{\sDeepDup x}\rho \coloneqq \dsem{x}\rho.
+\dsem{\sDup x}\rho &\coloneqq \dsem{x}\rho \\
+\dsem{\sDeepDup x}\rho &\coloneqq \dsem{x}\rho.
 \end{align*}
 
 \begin{theorem}[Theorem 2 from \citep{launchbury}]
@@ -940,7 +948,9 @@ and
 by (ii).
 \end{proof}
 
-More interesting than the semantic correctness of our additional rules is what properties of \li-deepDup- we can prove with them. Following our intuition from the introduction, we formulate the next
+More interesting than the semantic correctness of our additional rules is what properties of \li-deepDup- we can prove with them. Following our intuition from the introduction, we formulate the next Theorem.
+
+\pagebreak[3]
 \begin{theorem}
 Consider the expression
 \[
@@ -989,7 +999,9 @@ As $x \in \ur{\Gamma,x \mapsto e} x$ and removing a variable from a heap does no
 For brevity, let $\Gamma' = \Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n$ and $e_{l} = \sLet {x_1=e_1,\ldots,x_n=e_n}e$.
 Clearly $\Gamma_0 \subseteq \Gamma \subseteq \Gamma'$.
 Also, for each $e_* \in \{e_l,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \ufv{l} \cup \{x_1,\ldots,x_n\}$. This implies 
+
 \begin{align*}
+\allowdisplaybreaks[3]
 \ur{\Gamma'}e
 &= \mu V. V \cup \ufv e \cup \textstyle\bigcup_{x\in \ufv e}\ur{\Gamma'}{\Gamma'\ x} \\
 &\subseteq \mu V. V
@@ -1038,8 +1050,10 @@ and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyse
 \end{proof}
 
 \begin{proof}[of Lemma \ref{lem:varpres}]
-\case{$\sLam xe$ and $\sApp e x$}
+\case{$\sLam xe$}
 Immediate.
+\case{$\sApp e x$}
+Follows immediately from the inductive hypothesizes.
 \case{$x$}
 As $\ur\Gamma y \subseteq \ur{\Gamma,x\mapsto e} y$ holds we obtain $U\cap\ur{\Delta}x=\emptyset$ from the induction hypothesis and  $U\cap \ur{\Delta} z = \emptyset$ from Lemma \ref{lem:deepdup} applied to the inductive case $\sred\Gamma e \Delta z$. Together with $\ur{\Delta,x\mapsto z}y \subseteq \ur{\Delta}y \cup \ur{\Delta}z$ this implies the statement.
 \case{$\sLet {x_1=e_1,\ldots,x_n=e_n}e$}
