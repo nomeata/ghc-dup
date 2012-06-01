@@ -783,6 +783,8 @@ We extend Launchbury’s semantics for normalized lambda calculus with our two p
 \newcommand{\sExp}{\text{Exp}}
 \newcommand{\sHeap}{\text{Heap}}
 \newcommand{\sVal}{\text{Val}}
+\newcommand{\sValue}{\text{Value}}
+\newcommand{\sEnv}{\text{Env}}
 \newcommand{\sApp}[2]{#1\ #2}
 \newcommand{\sLam}[2]{\text{\textlambda} #1.\, #2}
 \newcommand{\sDup}[1]{\sApp \mdup #1}
@@ -813,7 +815,7 @@ z &\in \sVal &&\Coloneqq \sLam x e
 \end{alignat*}
 His lambda terms are normalized, i.e.\ all bound variables are distinct and all applications are applications of an expression to a variable.
 
-In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $x'$ and $y_i'$ are fresh. In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
+In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $x'$ and $y_i'$ are completely fresh. In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
 
 \begin{figure}
 \[
@@ -872,7 +874,11 @@ x\mapsto e,
 \newcommand{\esem}[1]{\{\!\!\{#1\}\!\!\}}
 \newcommand{\case}[1]{\par\vspace{\standardvspace}\noindent\textbf{Case:} #1\par}
 
-Besides the natural semantics, Launchbury also defines a denotational semantics. He models values as a lifted function space and environments as functions from variables into values. He writes $\rho \le \rho'$  if $\rho'$ extends $\rho$. The expression $\dsem e \rho$ is the value of the expression $e$ in the environment $\rho$, $\esem \Gamma \rho$ is the environment $\rho$ updated by the values specified in the heap $\Gamma$. This is defined as a fixed point, as the heap may contain recursive references:
+Besides the natural semantics, Launchbury also defines a denotational semantics. He models values as a lifted function space, denoted \sValue, and environments
+\[
+\rho \in \sEnv = \sVar \to \sValue
+\]
+as functions from variables into values. He writes $\rho \le \rho'$  if $\rho'$ extends $\rho$, i.e. differs only for variables where $\rho$ is bottom. The expression $\dsem e \rho$ is the value of the expression $e$ in the environment $\rho$, $\esem \Gamma \rho$ is the environment $\rho$ updated by the values specified in the heap $\Gamma$. This is defined as a fixed point, as the heap may contain recursive references:
 \begin{multline*}
 \esem{ x_1\mapsto e_1,\ldots,x_n\mapsto e_n}\rho \\
 = \mu \rho'. \rho \sqcup (x_1 \mapsto \dsem{e_1}{\rho'}) \sqcup \cdots \sqcup (x_n \mapsto \dsem{e_n}{\rho'})
@@ -949,10 +955,9 @@ and
 by (ii).
 \end{proof}
 
-\pagebreak[4]
+\pagebreak[2]
 More interesting than the semantic correctness of our additional rules is what properties of \li-deepDup- we can prove with them. Following our intuition from the introduction, we formulate the next Theorem.
 
-\pagebreak[3]
 \begin{theorem}
 Consider the expression
 \[
@@ -1048,7 +1053,7 @@ Statement (c) follows immediately as $\fresh x$ is fresh.
 
 \case{$\sDeepDup x$}
 Let $\Gamma' = \Gamma, x\mapsto e, \fresh x\mapsto \hat e[\fresh y_i/y_i], \fresh y_i \mapsto \sDeepDup y_i$.
-Recall that $\ufv {\sDeepDup x}=\emptyset$ and $\ufv{e} \subseteq \fv{e}$. So 
+Recall that $\ufv {\sDeepDup x}=\emptyset$, hence $\ur{\Gamma'}{\sDeepDup x} = \emptyset$, and $\ufv{e} \subseteq \fv{e}$. So 
 \begin{align*}
 \ur{\Gamma'}{\fresh x}
 &= \{\fresh x\} \cup \ur{\Gamma'}{\hat e[\fresh y_i/y_i]} \\
@@ -1057,8 +1062,16 @@ Recall that $\ufv {\sDeepDup x}=\emptyset$ and $\ufv{e} \subseteq \fv{e}$. So
 &\cup \ufv{\hat e[\fresh y_i / y_i]}\\
 &\cup \textstyle\bigcup_{z \in \ufv{\hat e[\fresh y_i / y_i]}} \ur{\Gamma'}{\Gamma' z}
 \end{aligned}\\
-&\subseteq \{\fresh x\} \cup \mu V. V \cup \{\fresh y_i\}_i \cup \textstyle\bigcup_{i} \ur{\Gamma'}{\Gamma' \fresh y_i} \\
-&= \{\fresh x\} \cup \mu V. V \cup \{\fresh y_i\}_i \cup \textstyle\bigcup_{i} \ur{\Gamma'}{\sDeepDup {y_i}}\\
+&\subseteq \{\fresh x\} \cup \mu V. V
+\begin{aligned}[t]
+&\cup \{\fresh y_i\}_i \\
+&\cup \textstyle\bigcup_{i} \ur{\Gamma'}{\Gamma' \fresh y_i}
+\end{aligned}\\
+&= \{\fresh x\} \cup \mu V. V
+\begin{aligned}[t]
+&\cup \{\fresh y_i\}_i\\
+&\cup \textstyle\bigcup_{i} \ur{\Gamma'}{\sDeepDup {y_i}}
+\end{aligned}\\
 &= \{\fresh x\} \cup \mu V. V \cup \{\fresh y_i\}_i  \\
 &= \{\fresh x\} \cup \{\fresh y_i\}_i
 \end{align*}
@@ -1067,6 +1080,7 @@ and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyse
 Statement (c) follows immediately as the added variables are fresh.
 \end{proof}
 
+Having cast our intuition of \li-dup- and \li-deepDup- into a precise form using a formal semantics, we now explain how we have implemented this semantics, or rather a pragmatic approximation, in a real environment.
 
 \section{The prototype implementation}
 \label{sec:prototype}
