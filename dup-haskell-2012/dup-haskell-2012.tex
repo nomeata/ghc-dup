@@ -815,7 +815,9 @@ z &\in \sVal &&\Coloneqq \sLam x e
 \end{alignat*}
 His lambda terms are normalized, i.e.\ all bound variables are distinct and all applications are applications of an expression to a variable.
 
-In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $x'$ and $y_i'$ are completely fresh. In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
+In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $x'$ and $y_i'$ are completely fresh.
+
+In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
 
 \begin{figure}
 \[
@@ -878,12 +880,13 @@ Besides the natural semantics, Launchbury also defines a denotational semantics.
 \[
 \rho \in \sEnv = \sVar \to \sValue
 \]
-as functions from variables into values. He writes $\rho \le \rho'$  if $\rho'$ extends $\rho$, i.e. differs only for variables where $\rho$ is bottom. The expression $\dsem e \rho$ is the value of the expression $e$ in the environment $\rho$, $\esem \Gamma \rho$ is the environment $\rho$ updated by the values specified in the heap $\Gamma$. This is defined as a fixed point, as the heap may contain recursive references:
+as functions from variables into values. He writes $\rho \le \rho'$  if $\rho'$ extends $\rho$, i.e. differs only for variables where $\rho$ is bottom. The expression $\dsem e \rho$ is the value of the expression $e$ in the environment $\rho$.
+
+The semantics of a heap $\Gamma$ is given by $\esem \Gamma \rho$, which is is the environment $\rho$ updated by the values specified in the heap. This is defined as a fixed point, as the heap may contain recursive references:
 \begin{multline*}
 \esem{ x_1\mapsto e_1,\ldots,x_n\mapsto e_n}\rho \\
 = \mu \rho'. \rho \sqcup (x_1 \mapsto \dsem{e_1}{\rho'}) \sqcup \cdots \sqcup (x_n \mapsto \dsem{e_n}{\rho'})
 \end{multline*}
-
 
 Launchbury proves his natural semantics to be correct with respect to the denotational semantics. 
 Naturally, we want to preserve this property. Our new primitives should be invisible to the denotational semantics, hence we extend the semantics function as follows:
@@ -901,7 +904,7 @@ If $\sred\Gamma e \Delta z$, then for all environments $\rho$,
 \]
 \end{theorem}
 \begin{proof}
-The proof in \citep{launchbury} is by induction on the derivation, the two additional cases are:
+The proof in \citep{launchbury} is by induction on the derivation; we only have to give it for the two new cases corresponding to the rules \sRule{Dup} and \sRule{Deep}:
 
 \case{$\sDup x$}
 By induction, we know (i) $\dsem{\fresh x}{\esem{\Gamma, x \mapsto e, \fresh x \mapsto \hat e} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma, x \mapsto e, \fresh x \mapsto \hat e} \rho \le \esem \Delta \rho$.
@@ -948,11 +951,10 @@ This implies (iii) $\dsem{\hat e[\fresh y_i/y_i]}{\esem{\Gamma'}\rho} = \dsem{e}
 &= \dsem{\fresh x}{\esem{\Gamma'}\rho}\\
 &= \dsem{z}{\esem \Delta \rho} &&\text{by (i)}
 \end{align*}
-and
+and, by (ii),
 \begin{align*}
-\esem{\Gamma, x\mapsto e}\rho \le \esem{\Gamma'} \rho \le \esem{\Delta}\rho
+\esem{\Gamma, x\mapsto e}\rho \le \esem{\Gamma'} \rho \le \esem{\Delta}\rho.
 \end{align*}
-by (ii).
 \end{proof}
 
 \pagebreak[2]
