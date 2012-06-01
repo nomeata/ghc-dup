@@ -18,7 +18,7 @@ import Data.Maybe
 import GHC.HeapView hiding (Box, value)
 import Text.Printf
 import Data.Ord
-import Dup
+import GHC.Dup
 
 -- Specification
 

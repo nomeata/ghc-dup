@@ -112,7 +112,7 @@ deepDupClosure
 	    //StgAP_fun(ap) = Dup_deepDupFun_closure;
 
 	    SET_HDR(ap, stg_ap_2_upd_info, CCCS);
-	    StgThunk_payload(ap,0) = Dup_deepDupFun_closure;
+	    StgThunk_payload(ap,0) = ghczmdupzm0zi1_GHCziDup_deepDupFun_closure;
 
 	    // SET_HDR(ap, stg_deepDup_info, CCCS);
 

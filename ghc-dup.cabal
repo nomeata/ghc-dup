@@ -1,8 +1,10 @@
 Name:                ghc-dup
 Version:             0.1
-Synopsis:            TODO
+Synopsis:            Explicitly prevent sharing
 Description:
-  TODO
+  This package provides two new operations, 'GHC.Dup.dup' and 'GHC.Dup.deepDup', that allow the
+  programmer to prevent the result of two evaluations of the same expression to
+  be shared.
   .
   The work on this package has been supported by the Deutsche Telekom Stiftung
   (<http://telekom-stiftung.de>).
@@ -21,13 +23,13 @@ Cabal-version:       >=1.14
 --    Default: False
 
 Library
-  Exposed-modules: Dup
+  Exposed-modules: GHC.Dup
   Default-Language:    Haskell2010
   Build-depends:
     base == 4.5.*,
     ghc
-  C-Sources: dup.c dup-prim.cmm
---  Hs-source-dirs: src/
+  C-Sources: cbits/dup.c cbits/dup-prim.cmm
+  Hs-source-dirs: src/
   Ghc-options: -Wall
 
 --  if flag(prim-supports-any)

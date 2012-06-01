@@ -6,7 +6,7 @@ import System.Environment
 import System.Mem
 import System.IO
 
-import Dup
+import GHC.Dup
 
 data Tree = Node Word32 [Tree]
 firstChild (Node _ (t:_)) = t
