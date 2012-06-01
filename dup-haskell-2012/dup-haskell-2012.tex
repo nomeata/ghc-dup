@@ -880,7 +880,7 @@ Besides the natural semantics, Launchbury also defines a denotational semantics.
 \[
 \rho \in \sEnv = \sVar \to \sValue
 \]
-as functions from variables into values. He writes $\rho \le \rho'$  if $\rho'$ extends $\rho$, i.e. differs only for variables where $\rho$ is bottom. The expression $\dsem e \rho$ is the value of the expression $e$ in the environment $\rho$.
+as functions from variables into values. He writes $\rho \le \rho'$ if $\rho'$ extends $\rho$, i.e. they differ only for variables where $\rho$ is bottom. The expression $\dsem e \rho$ is the value of the expression $e$ in the environment $\rho$.
 
 The semantics of a heap $\Gamma$ is given by $\esem \Gamma \rho$, which is is the environment $\rho$ updated by the values specified in the heap. This is defined as a fixed point, as the heap may contain recursive references:
 \begin{multline*}
@@ -958,7 +958,7 @@ and, by (ii),
 \end{proof}
 
 \pagebreak[2]
-More interesting than the semantic correctness of our additional rules is what properties of \li-deepDup- we can prove with them. Following our intuition from the introduction, we formulate the next Theorem.
+More interesting than the semantic correctness of our additional rules is what properties of \li-deepDup- we can prove with them. Following our intuition from the introduction, we formulate the next theorem.
 
 \begin{theorem}
 Consider the expression
@@ -1004,9 +1004,9 @@ As $\ur\Delta{e'[x/y]} \subseteq \ur\Delta{\sLam ye'} \cup \ur\Delta{x}$, (ii) a
 Statement (c) follows immediately from the induction hypothesizes.
 
 \case{$x$}
-As $x \in \ur{\Gamma,x \mapsto e} x$ and removing a variable from a heap does not increase unreachable sets, $\ur\Gamma e \subseteq \ur{\Gamma, x\mapsto e}e \subseteq \ur{\Gamma,x\mapsto e} x$. Furthermore, $x \notin U$, so $\Gamma_0 \subseteq \Gamma$ and we can invoke the induction hypothesis to obtain $\Gamma_0 \subseteq \Delta$ and $U \cap \ur\Delta z = \emptyset$. As $\Delta \subseteq (\Delta, x \mapsto z)$, $\ufv{z} = \ufv{\hat z}$ and $\ur \Delta z = \ur {\Delta, x \mapsto z} {\hat z}$, the statements (a) $\Gamma_0\subseteq(\Delta,x\mapsto z)$ and (b) $ U\cap \ur{\Delta, x\mapsto z}{\hat z} = \emptyset$ follow.
+Removing a variable from a heap does not increase unreachable sets, so $\ur\Gamma e \subseteq \ur{\Gamma, x\mapsto e}e \subseteq \ur{\Gamma,x\mapsto e} x$. From $x \in \ur{\Gamma,x \mapsto e} x$ and the assumption $U \cap \ur{\Gamma,x\mapsto e}x = \emptyset$ we have $x \notin U$, thus $\Gamma_0 \subseteq \Gamma$, and $U \cap \ur\Gamma e = \emptyset$. From the induction hypothesis we now obtain $\Gamma_0 \subseteq \Delta$ and $U \cap \ur\Delta z = \emptyset$. As $\Delta \subseteq (\Delta, x \mapsto z)$, $\ufv{z} = \ufv{\hat z}$ and $\ur \Delta z = \ur {\Delta, x \mapsto z} {\hat z}$, the statements (a) $\Gamma_0\subseteq(\Delta,x\mapsto z)$ and (b) $ U\cap \ur{\Delta, x\mapsto z}{\hat z} = \emptyset$ follow.
 
-Let $y\in \dom\Gamma_0$ with $U\cap \ur{\Gamma,x\mapsto e}y=\emptyset$. As $\ur\Gamma y \subseteq \ur{\Gamma,x\mapsto e} y$ we have $U\cap\ur\Gamma y=\emptyset$ and hence $U\cap\ur{\Delta}y=\emptyset$ from the induction hypothesis. This and (a) imply (c), as $\ur{\Delta,x\mapsto z}y \subseteq \ur{\Delta}y \cup \ur{\Delta}z$.
+Let $y\in \dom\Gamma_0$ with $U\cap \ur{\Gamma,x\mapsto e}y=\emptyset$. As $\ur\Gamma y \subseteq \ur{\Gamma,x\mapsto e} y$ we have $U\cap\ur\Gamma y=\emptyset$ and hence $U\cap\ur{\Delta}y=\emptyset$ from the induction hypothesis. This and (b) imply (c), as $\ur{\Delta,x\mapsto z}y \subseteq \ur{\Delta}y \cup \ur{\Delta}z$.
 
 \case{$\sLet {x_1=e_1,\ldots,x_n=e_n}e$}
 For brevity, let $\Gamma' = \Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n$ and $e_{l} = \sLet {x_1=e_1,\ldots,x_n=e_n}e$.
@@ -1079,7 +1079,7 @@ Recall that $\ufv {\sDeepDup x}=\emptyset$, hence $\ur{\Gamma'}{\sDeepDup x} = \
 \end{align*}
 and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyset$. Clearly, $\Gamma_0 \subseteq (\Gamma, x\mapsto e) \subseteq \Gamma'$, so the  first statement follows from the induction hypothesis.
 
-Statement (c) follows immediately as the added variables are fresh.
+Statement (c) follows immediately as the additional variables are fresh.
 \end{proof}
 
 Having cast our intuition of \li-dup- and \li-deepDup- into a precise form using a formal semantics, we now explain how we have implemented this semantics, or rather a pragmatic approximation, in a real environment.
