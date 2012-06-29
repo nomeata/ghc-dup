@@ -137,7 +137,6 @@ in  f l
 This program is space-leaky and will quickly run out of memory. If we substitute the term for \li-xs- in the body of \li-f- and evaluate that expression, it runs quickly and in constant memory. We have avoided the sharing of \li-xs- between the calls to \li-last- and \li-head- and the list elements can be garbage collected as soon as they have been consumed by \li-last-.
 
 But this source transformation, as well as other source transformations to avoid sharing (see Section \ref{sec:unit} and \ref{sec:church}), is not always possible or desirable, e.g.\  when the parameter passed to \li-f- comes from library code not under the control of the programmer. For this case, we propose a new primitive operation \li-dup- which copies a (possibly unevaluated) value on the heap.
-\pagebreak[3]
 \begin{haskell}
 data Box a = Box a
 dup :: a -> Box a
@@ -163,11 +162,10 @@ Our specific contributions are:
 \item We show the feasibility of our approach using a proof-of-concept implementation targeting code compiled by an unmodified GHC. (Section \ref{sec:prototype})
 \end{itemize}
 
-\pagebreak[3]
 \section{The running example}
 \label{sec:example}
 
-For the remainder of the paper, we will use one running example to demonstrate and discuss the use of \li-dup-. The task at hand, inspired by the minimax algorithm that searches for an optimal strategy in a two-player turn-based game, is to find a path through a (possibly infinite) tree that maximizes some valuation of the nodes. So abstractly, we have a type \li-S- of states, a valuation function \li-value-, an initial state \li-init- and for every state \li-s-, a list of successor states \li-succs s- (see also Figure~\ref{fig:ex}).
+For the remainder of the paper, we will use one running example to demonstrate and discuss the use of \li-dup-. The task at hand, inspired by the minimax algorithm that searches for an optimal strategy in a two-player turn-based game, is to find a path through a (possibly infinite) tree that maximizes some valuation of the nodes. So abstractly, we have a type \li-S- of states, a valuation function \li-value-, an initial state \li-init- and for every state \li-s-, a list of successor states \li-succs s-. For the sake of simplicity of the presentation, we assume this \li-succs s- to be always non-empty (see also Figure~\ref{fig:ex}).
 
 \begin{figure}
 \begin{haskell}
@@ -179,6 +177,8 @@ value :: S -> Integer
 
 -- The search tree code
 data Tree = Node S [Tree]
+fstChild :: Tree -> Tree
+fstChild (Tree _ (x:xs)) = x
 
 tree :: S -> Tree
 tree s = Node s (map tree (succs s))
@@ -190,7 +190,7 @@ solve (Node n ts) = n : solve picked
   picked = fst (maximumBy (comparing snd) rated)
   depth = ...
 
-rate :: Tree -> Integer
+rate :: Int -> Tree -> Integer
 rate 0 (Node s _) = value s
 rate d (Node _ ts) = maximum (map (rate (d-1)) ts)
 
@@ -205,10 +205,10 @@ main = do
 
 Based on these functions, we define a search tree and a solver. The solver picks the successor with the highest rating, whereas the rating is the highest value of nodes at a configurable depth.
 
-Assume a constant number of successors $b$ and that the value of \li-depth- is $d$. Consider what happens when we want to calculate the first 10\,000 elements of the solution: The \li-rate- function will evaluate lots of nodes that will \emph{not} be picked for the solution. But as they are still referenced by the tree \li-t-, the garbage collector cannot get rid of them. So in addition to the  10\,000 interesting nodes, roughly $10\,000\cdot (b-1)\cdot b^{d-1}$ nodes are evaluated that the programmer knows are not required to be kept around. The first row of Figure \ref{fig:evaluation} depicts the heap during this evaluation, with $d=1$ and $b=2$.
+Assume a constant number of successors $b$, $b>0$, and that the value of \li-depth- is $d$. Consider what happens when we want to calculate the first 10\,000 elements of the solution: The \li-rate- function will evaluate lots of nodes that will \emph{not} be picked for the solution. But as they are still referenced by the tree \li-t-, the garbage collector cannot get rid of them. So in addition to the  10\,000 interesting nodes, roughly $10\,000\cdot (b-1)\cdot b^{d-1}$ nodes are evaluated that the programmer knows are not required to be kept around. The first row of Figure \ref{fig:evaluation} depicts the heap during this evaluation, with $d=1$ and $b=2$.
 
 \newcommand{\stats}[1]{\ref*{#1}}
-More concretely with $d=4$, $b=4$, \li-type S = Word32- and a very cheap \li-succs- function, this program requires \stats{stats:Original:Shared:mem}~MB of system memory and runs in \stats{stats:Original:Shared:time} seconds.%
+More concretely with $d=4$, $b=4$, \li-type S = Word32- and a very cheap \li-succs- and \li-value- functions, this program requires \stats{stats:Original:Shared:mem}~MB of system memory (as reported by the GHC runtime as “total memory in use” when passed the \ci!-s! option) and runs in \stats{stats:Original:Shared:time} seconds.%
 \footnote{All statistics are obtained on a machine with 2.5~GHz and 6~GB of RAM. The complete code used to generate these statistics is available in the \ci!ghc-dup! repository at \url{http://darcs.nomeata.de/ghc-dup}.} Sharing is indeed the problem here: If we remove the last line of \li-main-, the program runs in \stats{stats:Original:Unshared:mem}~MB of memory and takes \stats{stats:Original:Unshared:time} seconds.
 
 \section{Unsharing the example}
@@ -655,11 +655,11 @@ node [above right] {
 
 We want to improve the space performance of the program in the example and thus, due to the saved work in the garbage collector, also the runtime performance. In the following, we use \li-dup-, first wrapping the argument of \li-solve-, then the argument of \li-rate-, and \li-deepDup-. We also try two variants that work without new primitives, but require refactoring the generating code. The statistics are collected in Figure \ref{fig:stats}, where all six strategies are applied to
 \begin{itemize}
-\item an otherwise unreferenced tree,
-\item a shared, unevaluated tree, 
-\item a shared, unevaluated tree wrapped in another thunk,
-\item a shared, partly evaluated tree and
-\item a shared, fully evaluated tree.
+\item an otherwise unreferenced tree, i.e.\ the example code without the last line of the main function,
+\item a shared, unevaluated tree as shown in Figure \ref{fig:ex},
+\item a shared, unevaluated tree wrapped in another thunk, by passing \li-(fstChild t)- to \li-solve-,
+\item a shared tree that has been partly evaluated forcing \li-seq (fstChild t)- before passing \li-t- to the solver and
+\item a shared tree that has been fully evaluated tree by solving the problem twice in a row.
 \end{itemize}
 
 \subsection{Using dup}
@@ -674,7 +674,7 @@ And indeed, we have almost achieved the performance of the original program with
 Another candidate for \li-dup-’ing is the function \li-rate-:
 As this is the function whose return value is taken into account when deciding whether to pick the argument or not, we know that in most cases, its argument will not be used any more. Therefore, by creating a wrapper \li-rateDup- that duplicates the argument, and using that in \li-solve-, we allow for the argument and all its children to be garbage collected once \li-rate- has finished.
 \begin{haskell}
-rateDup t = case dup t of Box t' -> rate t'
+rateDup d t = case dup t of Box t' -> rate d t'
 \end{haskell}
 
 Both the runtime and the memory footprint of the program are greatly reduced compared to the original program: It uses \stats{stats:RateDup:Shared:mem}~MB of memory and \stats{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason is that with \li-rate- wrapped in \li-dup-, the first child of the node under inspection of \li-solve- can be freed already when its next child is evaluated by \li-rate- (Figure~\ref{fig:evaluation}, last row, second-to-last column), so the copying garbage collector needs to do even less work.
@@ -682,15 +682,22 @@ Both the runtime and the memory footprint of the program are greatly reduced com
 \subsection{Using deepDup}
 
 \label{sec:deepdup}
-Using \li-dup- is a fragile business and requires the programmer to have a very good idea about what is happening at runtime. The approach above is fragile and will fail, for example, in two common situations: If the argument to \li-solveDup- is not just the tree \li-t- but rather an expression that references \li-t-, e.g.\ \li-fstChild t- where \li!fstChild :: Tree -> Tree! does what its name indicates, then \li-dup- will only copy this unevaluated expression, but both copies will reference the same unevaluated expression for~\li-t-, and we are back at the original performance (\stats{stats:SolveDup:SharedThunk:mem}~MB, \stats{stats:SolveDup:SharedThunk:time} seconds).
+Using \li-dup- is a fragile business and requires the programmer to have a very good idea about what is happening at runtime. The approach above is fragile and will fail, for example, in two common situations: If the call to \li-solveDup- in \li-main- in Figure \ref{fig:ex} would not just pass the tree \li-t- but rather an expression referencing \li-t-, e.g.
+\begin{haskell}
+print $ solveDup (fstChild t) !! 1000
+\end{haskell}
+then \li-dup- will only copy this unevaluated expression, but both copies will reference the same unevaluated expression for~\li-t-, and we are back at the original performance (\stats{stats:SolveDup:SharedThunk:mem}~MB, \stats{stats:SolveDup:SharedThunk:time} seconds).
 
 The same effect occurs if the tree is already partly evaluated. This may even be caused by a compiler transformation, e.g.\ the wrapper/worker transformation, assuming that \li-doSomethingElseWith- is strict  in its argument \citep{unboxed}. Then, the parameter \li-t- is the \li-Node- constructor referencing other nodes or unevaluated trees, and copying the constructor does not help to prevent sharing the referenced data, as shown in the first row of Figure \ref{fig:deepevaluation}.
 
-This is where \li-deepDup- comes in: It will not only copy the object specified by its parameter, but also change all references therein so that before they are evaluated, \li-deepDup- copies them. So we wrap \li-solve- in a call to \li-deepDup-:
+This is where \li-deepDup- comes in:
+Intuitively, \li-deepDup- takes a complete and private copy of the entire heap rechable from its argument, hence preventing any unwanted evaluation outside this copy. Effectively, this is done lazily: It will just copy the object specified by its parameter, and change all references therein so that before they are evaluated, \li-deepDup- copies them.
+
+So by wrapping \li-solve- in a call to \li-deepDup-:
 \begin{haskell}
 solveDeepDup t = case deepDup t of Box t' -> solve t'
 \end{haskell}
-Now we achieve the performance of a successful run with \li-dup- (\stats{stats:SolveDeepDup:SharedThunk:mem}~MB and \stats{stats:SolveDeepDup:SharedThunk:time} seconds), but also in the cases where \li-t- has already been partly evaluated or is wrapped in another unevaluated expression. The second row of Figure \ref{fig:deepevaluation} shows \li-deepDup- at work.
+we achieve the performance of a successful run with \li-dup- (\stats{stats:SolveDeepDup:SharedThunk:mem}~MB and \stats{stats:SolveDeepDup:SharedThunk:time} seconds), but also in the cases where \li-t- has already been partly evaluated or is wrapped in another unevaluated expression. The second row of Figure \ref{fig:deepevaluation} shows \li-deepDup- at work.
 
 Using \li-deepDup- is therefore more reliable and easier to handle: The programmer need not have an exact idea of the evaluation state of the arguments when \li-deepDup- is called. And the recursive copying is surprisingly cheap: Even when the tree is already fully evaluated, e.g. by an earlier call to \li-solve t !! 10000-, the runtime stays the same within the precision of the benchmark.
 %\footnote{In fact, it is reliably reduced by about one percent; the reason is not yet clear to us.}
@@ -768,9 +775,10 @@ Unfortunately, it requires a thorough refactoring of both the data generating an
 
 The church encoding pattern shows good and predictable memory performance, but exhibits bad runtime behavior. The cases where it is ahead of other approaches it wins only due to the garbage collector overhead induced by unprevented sharing. As the previous pattern, it requires extensive refactoring.
 
+Note that the numbers in the last the last column are not comletely compareable, as there is no such thing as a fully evaluated \li-UTree- \li-CTree-. Therefore, the run-time doubles quite exactly as expected, while the original code can benefit from an already evaluated tree.
+
 Our primitives come with very small overhead when applied to data that is actually unshared, as we show in the first column. In fact, careful use of \li-dup- can improve performance noticeably even if only small pieces of data can be un-shared and thus freed quickly. While \li-dup- is subtle to use, \li-deepDup- is robust and its effect is more precisely defined, as shown in the next section.
 
-\pagebreak[3]
 \section{A natural semantics}
 \label{sec:semantics}
 
@@ -815,9 +823,11 @@ z &\in \sVal &&\Coloneqq \sLam x e
 \end{alignat*}
 His lambda terms are normalized, i.e.\ all bound variables are distinct and all applications are applications of an expression to a variable.
 
-In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Variable} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $x'$ and $y_i'$ are completely fresh.
+To avoid having to introduce constructors and case expressions as well well we assume $\sDup$ and $\sDeepDup$ to return their result unboxed. This captures the semantics of the Haskell expression \li!(\x. let Box y = dup x in y)!.
 
-In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
+In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Var} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $x'$ and $y_i'$ are completely fresh.
+
+In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding occurring in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
 
 \begin{figure}
 \[
@@ -887,6 +897,7 @@ The semantics of a heap $\Gamma$ is given by $\esem \Gamma \rho$, which is is th
 \esem{ x_1\mapsto e_1,\ldots,x_n\mapsto e_n}\rho \\
 = \mu \rho'. \rho \sqcup (x_1 \mapsto \dsem{e_1}{\rho'}) \sqcup \cdots \sqcup (x_n \mapsto \dsem{e_n}{\rho'})
 \end{multline*}
+This definition maks sense on environments $\rho$ that are consistent with $\Gamma$, i.e.\ if $\rho$ and $\Gamma$ bind the same variable, then they are bound to values for which an upper bound exists.
 
 Launchbury proves his natural semantics to be correct with respect to the denotational semantics. 
 Naturally, we want to preserve this property. Our new primitives should be invisible to the denotational semantics, hence we extend the semantics function as follows:
@@ -904,7 +915,7 @@ If $\sred\Gamma e \Delta z$, then for all environments $\rho$,
 \]
 \end{theorem}
 \begin{proof}
-The proof in \citep{launchbury} is by induction on the derivation; we only have to give it for the two new cases corresponding to the rules \sRule{Dup} and \sRule{Deep}:
+The proof in \citep{launchbury} is by induction on the derivation; we only have to give it for the two new cases corresponding to the rules \sRule{Dup} and \sRule{Deep}. We assume that the fresh variables in the rules are chosen to be undefined in $\rho$:
 
 \case{$\sDup x$}
 By induction, we know (i) $\dsem{\fresh x}{\esem{\Gamma, x \mapsto e, \fresh x \mapsto \hat e} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma, x \mapsto e, \fresh x \mapsto \hat e} \rho \le \esem \Delta \rho$.
@@ -957,8 +968,7 @@ and, by (ii),
 \end{align*}
 \end{proof}
 
-\pagebreak[2]
-More interesting than the semantic correctness of our additional rules is what properties of \li-deepDup- we can prove with them. Following our intuition from the introduction, we formulate the next theorem.
+More interesting than the semantic correctness of our additional rules is what properties of \li-deepDup- we can prove with them. Following our intuition from the introduction, we formulate the next theorem, where $\Gamma \subseteq \Delta$ means that $\Gamma$ and $\Delta$ agree on the domain of $\Gamma$ and only new variables are bound.
 
 \begin{theorem}
 Consider the expression
@@ -1087,9 +1097,11 @@ Having cast our intuition of \li-dup- and \li-deepDup- into a precise form using
 \section{The prototype implementation}
 \label{sec:prototype}
 
-Our implementation\footnote{Available at \url{http://darcs.nomeata.de/ghc-dup}} works with the Glasgow Haskell Compiler (GHC), version 7.4.1, and requires no modifications to the compiler or its runtime. GHC compiles Haskell code first to a polymorphic, explicitly typed lambda-calculus called \emph{Core} \citep{core,system-fc}, then to the \emph{Spineless Tagless G-machine} (STG) \citep{stg}. From there, it generates \emph{Cmm} code, an implementation of the portable assembly language C-{}- which is then compiled to machine code, either directly or via LLVM.
+Our implementation\footnote{Available at \url{http://darcs.nomeata.de/ghc-dup}} works with the Glasgow Haskell Compiler (GHC), version 7.4.1, and requires no modifications to the compiler or its runtime: The code is compiled to a usual object file, linked into the resulting binary and called via the foreign function interface.
 
-Our work happens at the level of the STG, where we only need to worry about data representation on the heap \citep{stg}. Details such as the evaluation model \cite{evalapply} are not important here.
+GHC compiles Haskell code first to a polymorphic, explicitly typed lambda-calculus called \emph{Core} \citep{core,system-fc}, then to the \emph{Spineless Tagless G-machine} (STG) \citep{stg}. From there, it generates \emph{Cmm} code, an implementation of the portable assembly language C-{}- which is then compiled to machine code, either directly or via LLVM.
+
+Our work looks at objects in the sense of the STG, so we only need to worry about data representation on the heap \citep{stg}. Questions about the earlier transformations,  such as the evaluation model \cite{evalapply}, are thus not important here.
 
 The common layout of all objects, or closures,  on the heap is a pointer to a statically allocated \emph{info table}, followed by the payload (Figure \ref{fig:heap}). The info table indicates the type of the object (not to be confused with the type from the type system – these are completely irrelevant at this stage), contains layout information about the payload required by the garbage collector, namely what words are pointers to other objects and what words are not, and the code to be run when the object is evaluated.
 
@@ -1097,7 +1109,7 @@ There are various types of objects on the heap, most important are:
 \begin{itemize}
 \item \emph{Data constructors}, representing fully evaluated values. The payload are pointers to the parameters of the constructor.
 \item \emph{Function closures}, representing functions. Locally defined functions capture their free variables, these are stored in the payload.
-\item \emph{Thunks}, which are unevaluated expressions. Again, the payload contains the values of their free variables.
+\item \emph{Thunks}, which are unevaluated expressions. Again, the payload contains references to their free variables.
 \item \emph{Applications} of a function to a number of arguments. This closure type is usually only used by the GHC interpreter, but we use it in the implementation of \li-deepDup-.
 \item \emph{Indirections}, which point to another object on the heap in their payload. These are created during evaluation and removed by the garbage collector.
 \end{itemize}
@@ -1215,7 +1227,7 @@ As described in Section \ref{sec:shortcomings}, there is work to be done on the 
 
 \acks
 
-I would like to thank Andreas Lochbihler for fruitful discussions and proof-reading. This work was supported by the Deutsche Telekom Stiftung.
+I would like to thank Andreas Lochbihler for fruitful discussions and proof-reading and the anonymous referees for being supportive of the idea and constructive about the presentation. This work was supported by the Deutsche Telekom Stiftung.
 
 \bibliographystyle{abbrvnat}
 \bibliography{bib}
