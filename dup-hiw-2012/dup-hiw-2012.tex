@@ -827,7 +827,7 @@ His lambda terms are normalized, i.e.\ all bound variables are distinct and all 
 
 To avoid having to introduce constructors and case expressions as well well we assume $\sDup$ and $\sDeepDup$ to return their result unboxed. This captures the semantics of the Haskell expression \li!(\x. let Box y = dup x in y)!.
 
-In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Var} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $x'$ and $y_i'$ are completely fresh.
+In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Var} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $\fresh x$ and $\fresh y_1,\ldots,\fresh y_n$ are completely fresh.
 
 In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding occurring in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
 
@@ -938,10 +938,10 @@ The second part follows from (ii) and from $\fresh x$ being fresh:
 \end{align*}
 
 \case{$\sDeepDup x$}
-Let \mbox{$\Gamma'$} denote {$\Gamma, x\mapsto e, \fresh x\mapsto \hat e[\fresh y_i/y_i], \fresh y_i \mapsto \sDeepDup {y_i}$}.
+Let \mbox{$\Gamma'$} denote the heap in the assumption of the rule, i.e. $\Gamma, x\mapsto e, \fresh x\mapsto \hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n],\allowbreak \fresh y_1 \mapsto \sDeepDup {y_1},\ldots,\allowbreak\fresh y_n \mapsto \sDeepDup {y_n}$.
 By induction, we know (i) $\dsem{\fresh x}{\esem{\Gamma'} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma'} \rho \le \esem \Delta \rho$.
 
-The newly introduced variables $\fresh y_i$ have the same semantics as their original counterparts:
+The newly introduced variables $\fresh y_1$, $i=1,\ldots,n$, have the same semantics as their original counterparts:
 \[
 \dsem{\fresh y_i}{\esem{\Gamma'}\rho}
 %= \esem{\Gamma'}\rho\ y_i
@@ -951,12 +951,12 @@ The newly introduced variables $\fresh y_i$ have the same semantics as their ori
 %= \esem{\Gamma'}\rho\ y_i = \esem{\Gamma, x\mapsto e}\rho\ y_i
 = \dsem{y_i}{\esem{\Gamma, x\mapsto e}\rho}.
 \]
-This implies (iii) $\dsem{\hat e[\fresh y_i/y_i]}{\esem{\Gamma'}\rho} = \dsem{e}{\esem{\Gamma, x\mapsto e}\rho}$. Hence
+This implies (iii) $\dsem{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]}{\esem{\Gamma'}\rho} = \dsem{e}{\esem{\Gamma, x\mapsto e}\rho}$. Hence
 \begin{align*}
 &\phantom{{}={}}\dsem{\sDeepDup x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{e}{\esem{\Gamma, x\mapsto e}\rho}\\
-&= \dsem{\hat e[\fresh y_i/y_i]}{\esem{\Gamma'}\rho} &&\text{by (iii)}\\
+&= \dsem{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]}{\esem{\Gamma'}\rho} &&\text{by (iii)}\\
 &= \dsem{\fresh x}{\esem{\Gamma'}\rho}\\
 &= \dsem{z}{\esem \Delta \rho} &&\text{by (i)}
 \end{align*}
@@ -1062,28 +1062,28 @@ As $x'$ is fresh, $\fresh x\notin U$ and from $U \cap \ur{\Gamma, x\mapsto e}{\s
 Statement (c) follows immediately as $\fresh x$ is fresh.
 
 \case{$\sDeepDup x$}
-Let $\Gamma' = \Gamma, x\mapsto e, \fresh x\mapsto \hat e[\fresh y_i/y_i], \fresh y_i \mapsto \sDeepDup y_i$.
-Recall that $\ufv {\sDeepDup x}=\emptyset$, hence $\ur{\Gamma'}{\sDeepDup x} = \emptyset$, and $\ufv{e} \subseteq \fv{e}$. So 
+Let $\Gamma'$ denote the heap $\Gamma, x\mapsto e, \fresh x\mapsto \hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n],\allowbreak \fresh y_1 \mapsto \sDeepDup y_1,\allowbreak \ldots,\allowbreak \fresh y_1 \mapsto \sDeepDup y_1$.
+Recall that, by definition, $\ufv {\sDeepDup x}=\emptyset$, hence $\ur{\Gamma'}{\sDeepDup x} = \emptyset$, and $\ufv{e} \subseteq \fv{e}$. So 
 \begin{align*}
 \ur{\Gamma'}{\fresh x}
-&= \{\fresh x\} \cup \ur{\Gamma'}{\hat e[\fresh y_i/y_i]} \\
+&= \{\fresh x\} \cup \ur{\Gamma'}{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]} \\
 &= \{\fresh x\} \cup \mu V. V
 \begin{aligned}[t]
-&\cup \ufv{\hat e[\fresh y_i / y_i]}\\
-&\cup \textstyle\bigcup_{z \in \ufv{\hat e[\fresh y_i / y_i]}} \ur{\Gamma'}{\Gamma' \ z}
+&\cup \ufv{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]}\\
+&\cup \textstyle\bigcup_{z \in \ufv{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]}} \ur{\Gamma'}{\Gamma' \ z}
 \end{aligned}\\
 &\subseteq \{\fresh x\} \cup \mu V. V
 \begin{aligned}[t]
-&\cup \{\fresh y_i\}_i \\
-&\cup \textstyle\bigcup_{i} \ur{\Gamma'}{\Gamma'\ \fresh y_i}
+&\cup \{\fresh y_1,\ldots, \fresh y_n\}\\
+&\cup \textstyle\bigcup_{i=1,\ldots,n} \ur{\Gamma'}{\Gamma'\ \fresh y_i}
 \end{aligned}\\
 &= \{\fresh x\} \cup \mu V. V
 \begin{aligned}[t]
-&\cup \{\fresh y_i\}_i\\
-&\cup \textstyle\bigcup_{i} \ur{\Gamma'}{\sDeepDup {y_i}}
+&\cup \{\fresh y_1,\ldots, \fresh y_n\}\\
+&\cup \textstyle\bigcup_{i=1,\ldots,n} \ur{\Gamma'}{\sDeepDup {y_i}}
 \end{aligned}\\
-&= \{\fresh x\} \cup \mu V. V \cup \{\fresh y_i\}_i  \\
-&= \{\fresh x\} \cup \{\fresh y_i\}_i
+&= \{\fresh x\} \cup \mu V. V \cup \{\fresh y_1,\ldots, \fresh y_n\} \\
+&= \{\fresh x\} \cup \{\fresh y_1,\ldots, \fresh y_n\}
 \end{align*}
 and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyset$. Clearly, $\Gamma_0 \subseteq (\Gamma, x\mapsto e) \subseteq \Gamma'$, so the  first statement follows from the induction hypothesis.
 
