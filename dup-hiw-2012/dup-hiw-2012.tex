@@ -982,9 +982,9 @@ The theorem is an immediate consequence of statement (a) of the following Lemma~
 \begin{itemize}
 \item 
 The set of unguarded free variables $\ufv e$ of an expression $e$, which is defined inductively just like $\fv e$ with the exception that $\ufv {\sDeepDup x} = \emptyset$, and 
-\item the unguarded reachable set $\ur{\Gamma}{e}$ of an expression $e$ in a context $\Gamma$, which is defined as a least fixed point:
+\item the unguarded reachable set $\ur{\Gamma}{e}$ of an expression $e$ in a context $\Gamma$, mutually defined for all expressions as the smallest sets which fulfill the equation
 \[
-\ur{\Gamma}{e} \coloneqq \mu V. V \cup \ufv e \cup \textstyle\bigcup_{x\in \ufv e}\ur{\Gamma}{\Gamma\ x}.
+\ur{\Gamma}{e} = \ufv e \cup \textstyle\bigcup_{x\in \ufv e}\ur{\Gamma}{\Gamma\ x}.
 \]
 Note that $\ufv e \subseteq \ufv {e'}$ implies $\ur\Gamma e \subseteq \ur\Gamma {e'}$. %and, more general, $\ufv e \subseteq \ufv {e'} \cup V$ implies $\ur\Gamma e \subseteq \ur\Gamma {e'} \cup V$ if $V$ is TODO.
 \end{itemize}
@@ -1023,22 +1023,22 @@ Also, for each $e_* \in \{e,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \ufv{
 \begin{align*}
 \allowdisplaybreaks[3]
 \ur{\Gamma'}e
-&= \mu V. V \cup \ufv e \cup \textstyle\bigcup_{x\in \ufv e}\ur{\Gamma'}{\Gamma'\ x} \\
-&\subseteq \mu V. V
+&= \ufv e \cup \textstyle\bigcup_{x\in \ufv e}\ur{\Gamma'}{\Gamma'\ x} \\
+&\subseteq 
 \begin{aligned}[t]
-&\cup \ufv {e_l} \cup \{x_1,\ldots,x_n\}\\
+\ufv {e_l} &\cup \{x_1,\ldots,x_n\}\\
 &\cup \textstyle\bigcup_{x\in \ufv {e_l}}\ur{\Gamma'}{\Gamma'\ x} \\
-&\cup \ur{\Gamma'}{\Gamma'\ x_1} \cup \ldots \cup \ur{\Gamma'}{\Gamma'\ x_n}
+&\cup \ur{\Gamma'}{\Gamma'\ x_1} \cup \cdots \cup \ur{\Gamma'}{\Gamma'\ x_n}
 \end{aligned}\displaybreak[3]\\
-&= \mu V. V
+&=
 \begin{aligned}[t]
-&\cup \ufv {e_l} \cup \{x_1,\ldots,x_n\}\\
+\ufv {e_l} &\cup \{x_1,\ldots,x_n\}\\
 &\cup \textstyle\bigcup_{x\in \ufv {e_l}}\ur{\Gamma'}{\Gamma'\ x}\\
-&\cup \ur{\Gamma'}{e_1} \cup \ldots \cup \ur{\Gamma'}{e_n}
+&\cup \ur{\Gamma'}{e_1} \cup \cdots \cup \ur{\Gamma'}{e_n}
 \end{aligned}\displaybreak[3]\\
-&= \mu V. V
+&= 
 \begin{aligned}[t]
-&\cup \ufv {e_l} \cup \{x_1,\ldots,x_n\} \\
+\ufv {e_l} &\cup \{x_1,\ldots,x_n\} \\
 &\cup \textstyle\bigcup_{x\in \ufv {e_l}}\ur{\Gamma'}{\Gamma'\ x}
 \end{aligned}\displaybreak[3]\\
 &= \ur{\Gamma'} {e_l} \cup \{x_1,\ldots,x_n\}\\
