@@ -760,10 +760,12 @@ Unfortunately, adapting \li-solve- to this type is a non-trivial task, as the tw
 csolve :: CTree -> [S]
 csolve t = fst (t csolve')
   where
-  csolve' :: S -> [([S],[Int])] -> ([S],[Int])
+  csolve' :: S -> [([S], Int -> Int)] -> ([S], Int -> Int)
   csolve' n rc = 
-    ( n : fst (maximumBy (comparing ((!! depth) . snd)) rc)
-    , value n : map maximum (transpose (map snd rc)))
+    ( n : fst (maximumBy (comparing (($ depth) . snd)) rc)
+    , \d -> if d == 0 then value n
+                      else maximum (map (($ d-1) . snd) rc))
+    
 \end{haskell}
 This additional complexity might make this approach impractical in larger settings.
 Note, though, that applying this pattern to the list data type turns a list into its right fold and can enable deforestation\citep{deforestation}.
@@ -773,7 +775,7 @@ Note, though, that applying this pattern to the list data type turns a list into
 As we can see from the statistics in Figure \ref{fig:stats}, the unit type argument pattern is the clear winner in both runtime and space performance. It is ahead of \li-rateDup- for the same reason that made \li-rateDup- faster than \li-solveDup-: Now even the subtrees in recursive calls of \li-rate- are freed immediately.
 Unfortunately, it requires a thorough refactoring of both the data generating and data consuming code; all combinators working on the data type need to be carefully rewritten to preserve the non-sharing behavior of the lifted data type. Also, the full laziness transformation can break the pattern, making it slightly fragile.
 
-The church encoding pattern shows good and predictable memory performance, but exhibits bad runtime behavior. The cases where it is ahead of other approaches it wins only due to the garbage collector overhead induced by unprevented sharing. As the previous pattern, it requires extensive refactoring.
+The church encoding pattern shows good and predictable memory performance, but exhibits slightly worse runtime behavior. The cases where it is ahead of other approaches it wins only due to the garbage collector overhead induced by unprevented sharing. As the previous pattern, it requires extensive refactoring.
 
 Note that the numbers in the last the last column are not comletely compareable, as there is no such thing as a fully evaluated \li-UTree- \li-CTree-. Therefore, the run-time doubles quite exactly as expected, while the original code can benefit from an already evaluated tree.
 

@@ -40,19 +40,24 @@ ctree s = CTree $ \f -> f s $ map (\s' -> unCTree (ctree s') f) (succs s)
 
 
 crate :: Int -> CTree -> Int
-crate d t = unCTree t crate' !! d
-  where crate' n st =  value n : map maximum (transpose st)
+crate d t = unCTree t crate' d
+  where
+  crate' :: S -> [Int -> Int] -> (Int -> Int)
+  crate' n st 0 = value n
+  crate' n st d = maximum (map ($ d-1) st)
 
 
 csolve :: CTree -> [S]
 csolve t = fst (unCTree t csolve')
   where
-  csolve' :: S -> [([S],[Int])] -> ([S],[Int])
+  csolve' :: S -> [([S],Int -> Int)] -> ([S],Int -> Int)
   csolve' n rc = 
     ( n : pickedChild
-    , value n : map maximum (transpose (map snd rc)))
+    , \d -> if d == 0
+            then value n
+            else maximum (map (($ d-1) . snd) rc))
     where
-    pickedChild = fst (maximumBy (comparing ((!! depth) . snd)) rc)
+    pickedChild = fst (maximumBy (comparing (($ depth) . snd)) rc)
 
 -- UTree stuff
 data UTree' = UNode S [UTree]
