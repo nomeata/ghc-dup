@@ -882,7 +882,7 @@ x\mapsto e,
 
 \newcommand{\dsem}[2]{\llbracket #1 \rrbracket_{#2}}
 \newcommand{\esem}[1]{\{\!\!\{#1\}\!\!\}}
-\newcommand{\case}[1]{\par\vspace{\standardvspace}\noindent\textbf{Case:} #1\par}
+\newcommand{\case}[1]{\par\vspace{\standardvspace}\noindent\textbf{Case:} #1\nopagebreak\par\noindent\ignorespaces}
 
 Besides the natural semantics, Launchbury also defines a denotational semantics. He models values as a lifted function space, denoted \sValue, and environments
 \[
@@ -1019,7 +1019,7 @@ Let $y\in \dom\Gamma_0$ with $U\cap \ur{\Gamma,x\mapsto e}y=\emptyset$. As $\ur\
 \case{$\sLet {x_1=e_1,\ldots,x_n=e_n}e$}
 For brevity, let $\Gamma' = \Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n$ and $e_{l} = \sLet {x_1=e_1,\ldots,x_n=e_n}e$.
 Clearly $\Gamma_0 \subseteq \Gamma \subseteq \Gamma'$.
-Also, for each $e_* \in \{e_l,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \ufv{l} \cup \{x_1,\ldots,x_n\}$. This implies 
+Also, for each $e_* \in \{e,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \ufv{e_l} \cup \{x_1,\ldots,x_n\}$. This implies 
 \begin{align*}
 \allowdisplaybreaks[3]
 \ur{\Gamma'}e
