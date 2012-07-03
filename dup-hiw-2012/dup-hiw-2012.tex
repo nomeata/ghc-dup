@@ -1067,22 +1067,21 @@ Recall that, by definition, $\ufv {\sDeepDup x}=\emptyset$, hence $\ur{\Gamma'}{
 \begin{align*}
 \ur{\Gamma'}{\fresh x}
 &= \{\fresh x\} \cup \ur{\Gamma'}{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]} \\
-&= \{\fresh x\} \cup \mu V. V
+&= \{\fresh x\}
 \begin{aligned}[t]
 &\cup \ufv{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]}\\
 &\cup \textstyle\bigcup_{z \in \ufv{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]}} \ur{\Gamma'}{\Gamma' \ z}
 \end{aligned}\\
-&\subseteq \{\fresh x\} \cup \mu V. V
+&\subseteq \{\fresh x\}
 \begin{aligned}[t]
 &\cup \{\fresh y_1,\ldots, \fresh y_n\}\\
 &\cup \textstyle\bigcup_{i=1,\ldots,n} \ur{\Gamma'}{\Gamma'\ \fresh y_i}
 \end{aligned}\\
-&= \{\fresh x\} \cup \mu V. V
+&= \{\fresh x\} 
 \begin{aligned}[t]
 &\cup \{\fresh y_1,\ldots, \fresh y_n\}\\
 &\cup \textstyle\bigcup_{i=1,\ldots,n} \ur{\Gamma'}{\sDeepDup {y_i}}
 \end{aligned}\\
-&= \{\fresh x\} \cup \mu V. V \cup \{\fresh y_1,\ldots, \fresh y_n\} \\
 &= \{\fresh x\} \cup \{\fresh y_1,\ldots, \fresh y_n\}
 \end{align*}
 and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyset$. Clearly, $\Gamma_0 \subseteq (\Gamma, x\mapsto e) \subseteq \Gamma'$, so the  first statement follows from the induction hypothesis.
