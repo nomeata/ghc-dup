@@ -831,58 +831,54 @@ In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{V
 
 In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding occurring in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
 
-\begin{figure}
-\[
-\allowdisplaybreaks[3]
-\begin{array}{@{}c@{}l@{}}
+\begin{figure*}
+\parskip1cm
+\begin{mathpar}
 \inferrule
-{}
+{ }
 {\sred{\Gamma}{\sLam xe}{\Gamma}{\sLam xe}}
-& \sRule{Lam}
-\\\\
+\sRule{Lam}
+\and
 \inferrule
 {\sred{\Gamma}e{\Delta}{\sLam y e'}\\ \sred{\Delta}{e'[x/y]}{\Theta}{z}}
 {\sred\Gamma{\sApp e x}\Theta z}
-& \sRule{App}
-\\\\
+\sRule{App}
+\and
 \inferrule
 {\sred\Gamma e \Delta z}
 {\sred{\Gamma, x\mapsto e} x {\Delta, x\mapsto z}{\hat z}}
-& \sRule{Var}
-\\\\
+\sRule{Var}
+\and
 \inferrule
 {\sred{\Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n} e \Delta z}
 {\sred{\Gamma}{\sLet{x_1 = e_1,\ldots, x_n = e_n}e} \Delta z}
-& \sRule{Let}
-\\\\
+\sRule{Let}
+\and
 \inferrule
 {\sred{\Gamma,x\mapsto e, \fresh x\mapsto \hat e} {\fresh x} \Delta z \\ \fresh x \text{ fresh}}
 {\sred{\Gamma,x\mapsto e}{\sDup x} \Delta z}
-& \sRule{Dup}
-\\\\
+\sRule{Dup}
+\and
 \inferrule
 {
-{\begin{gathered}
 \sred{
 \Gamma,
 x\mapsto e,
-\fresh x\mapsto \hat e[\fresh y_i/y_i],
-\fresh y_i \mapsto \sDeepDup y_i
-} {\fresh x} \Delta z \\
-\hfill
-\{y_i\}_i = \fv e
-\hfill
-\fresh x,\ \fresh y_i \text{ fresh}
-\hfill
-\end{gathered}}
+\fresh x\mapsto \hat e[\fresh y_1/y_1,\ldots, \fresh y_n/y_n],
+\fresh y_1 \mapsto \sDeepDup y_1,\ldots,
+\fresh y_n \mapsto \sDeepDup y_n
+} {\fresh x} \Delta z 
+\\
+\fv e = \{y_1,\ldots,y_n\}
+\\
+\fresh x,\ \fresh y_1,\ldots,y_n \text{ fresh}
 }
 {\sred{\Gamma,x\mapsto e}{\sDeepDup x} \Delta z}
-& \sRule{Deep}
-\end{array}
-\]
+\sRule{Deep}
+\end{mathpar}
 \caption{Natural semantics extended for \li-dup- and \li-deepDup-}
 \label{fig:semrules}
-\end{figure}
+\end{figure*}
 
 \newcommand{\dsem}[2]{\llbracket #1 \rrbracket_{#2}}
 \newcommand{\esem}[1]{\{\!\!\{#1\}\!\!\}}
