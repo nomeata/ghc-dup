@@ -770,6 +770,13 @@ csolve t = fst (t csolve')
 This additional complexity might make this approach impractical in larger settings.
 Note, though, that applying this pattern to the list data type turns a list into its right fold and can enable deforestation\citep{deforestation}.
 
+%\begin{figure*}
+%\centering
+%\input{statstable-slow}
+%\caption{Time and space performance for $b=4$ and $d=4$ and an expensive \li-succs- function.}
+%\label{fig:stats}
+%\end{figure*}
+
 \subsection{Comparison and interpretation}
 
 As we can see from the statistics in Figure \ref{fig:stats}, the unit type argument pattern is the clear winner in both runtime and space performance. It is ahead of \li-rateDup- for the same reason that made \li-rateDup- faster than \li-solveDup-: Now even the subtrees in recursive calls of \li-rate- are freed immediately.
@@ -780,6 +787,7 @@ The church encoding pattern shows good and predictable memory performance, but e
 Note that the numbers in the last the last column are not comletely compareable, as there is no such thing as a fully evaluated \li-UTree- \li-CTree-. Therefore, the run-time doubles quite exactly as expected, while the original code can benefit from an already evaluated tree.
 
 Our primitives come with very small overhead when applied to data that is actually unshared, as we show in the first column. In fact, careful use of \li-dup- can improve performance noticeably even if only small pieces of data can be un-shared and thus freed quickly. While \li-dup- is subtle to use, \li-deepDup- is robust and its effect is more precisely defined, as shown in the next section.
+
 
 \section{A natural semantics}
 \label{sec:semantics}
