@@ -26,7 +26,14 @@ type S = Word32
 data Tree = Node Word32 [Tree]
 firstChild (Node _ (t:_)) = t
 value n = popCount n
+
+countDown :: Word -> Bool
+countDown 0 = True
+countDown n = countDown (n-1)
+{-# NOINLINE countDown #-}
+
 succs n = [n * 3, n * 5, n * 7, n * 9]
+succsSlow n = if countDown (2^34) then [n * 3, n * 5, n * 7, n * 9] else []
 
 -- CTree stuff 
 newtype CTree = CTree { unCTree :: forall a. (S -> [a] -> a) -> a }
@@ -37,6 +44,9 @@ fromCTree ct = unCTree ct Node
 
 ctree :: S -> CTree
 ctree s = CTree $ \f -> f s $ map (\s' -> unCTree (ctree s') f) (succs s)
+
+ctreeSlow :: S -> CTree
+ctreeSlow s = CTree $ \f -> f s $ map (\s' -> unCTree (ctree s') f) (succsSlow s)
 
 
 crate :: Int -> CTree -> Int
@@ -59,10 +69,12 @@ csolve t = fst (unCTree t csolve')
     where
     pickedChild = fst (maximumBy (comparing (($ depth) . snd)) rc)
 
+
 -- UTree stuff
 data UTree' = UNode S [UTree]
 type UTree = () -> UTree'
 utree n = \_ -> UNode n (map utree (succs n))
+utreeSlow n = \_ -> UNode n (map utree (succsSlow n))
 
 usolve :: UTree -> [S]
 usolve t = usolve' (t ())
@@ -72,9 +84,8 @@ usolve t = usolve' (t ())
     ratedChilds = [ (t, urate depth t) | t <- ts ]
     pickedChild = fst (maximumBy (comparing snd) ratedChilds)
 
-
 urate :: Int -> UTree -> Int
-urate 0 t = case t () of (UNode n _)  -> popCount n
+urate 0 t = case t () of (UNode n _)  -> value n
 urate d t = case t () of (UNode _ ts) -> maximum (map (urate (d-1)) ts)
 
 
@@ -82,6 +93,7 @@ urate d t = case t () of (UNode _ ts) -> maximum (map (urate (d-1)) ts)
 
 t1 = tree 1
 tree n = Node n (map tree (succs n))
+treeSlow n = Node n (map tree (succsSlow n))
 
 depth = 4
 
@@ -91,8 +103,7 @@ solve (Node n ts) = n : solve pickedChild
   ratedChilds = [ (t, rate depth t) | t <- ts ]
   pickedChild = fst (maximumBy (comparing snd) ratedChilds)
 
-
-rate 0 (Node n _) = popCount n
+rate 0 (Node n _) = value n
 rate d (Node _ ts) = maximum (map (rate (d-1)) ts)
 
 solveDup t = case dup t of Box t -> solve t
@@ -108,10 +119,9 @@ solveRateRecDup (Node n ts) = n :
 rateDup d t = case dup t of Box t2 -> rate d t2
 {-# NOINLINE rateDup #-}
 
-rateRecDup 0 t = case dup t of Box (Node n _) -> popCount n
+rateRecDup 0 t = case dup t of Box (Node n _) -> value n
 rateRecDup d t = case dup t of Box (Node _ ts) -> maximum (map (rate (d-1)) ts)
 {-# NOINLINE rateRecDup #-}
-
 
 dosomethingwith :: Tree -> IO S
 dosomethingwith t = return $! solve t !! 1
@@ -136,6 +146,14 @@ regularSolver s = Run
     firstChild
     (\t -> return $! solve t !! 10000)
 
+regularSolverSlow :: (Tree -> [S]) -> Run
+regularSolverSlow s = Run
+    treeSlow
+    (\t -> return $! s t !! 10000)
+    (\t -> return $! solve t !! 1)
+    firstChild
+    (\t -> return $! solve t !! 10000)
+
 data RunDesc = Original 
 	| SolveDup 
 	| RateDup 
@@ -154,22 +172,39 @@ runDescDesc Unit = "unit lifting"
 runDescDesc Church = "church encoding"
 
 
-runs :: [(RunDesc, Run)]
+runs :: [((Bool,RunDesc), Run)]
 runs = [
-    (Original, regularSolver solve),
-    (SolveDup, regularSolver solveDup),
-    (RateDup, regularSolver solveRateDup),
---    (RateRecDup, regularSolver solveRateRecDup),
-    (SolveDeepDup, regularSolver solveDeepDup),
-    (Unit, Run
+    ((False,Original), regularSolver solve),
+    ((False,SolveDup), regularSolver solveDup),
+    ((False,RateDup), regularSolver solveRateDup),
+    ((False,SolveDeepDup), regularSolver solveDeepDup),
+    ((False,Unit), Run
         utree
         (\t -> return $! usolve t !! 10000)
         (\t -> return $! usolve t !! 1)
         id
         (\t -> return $! usolve t !! 10000)
     ),
-    (Church, Run
+    ((False,Church), Run
         ctree
+        (\t -> return $! csolve t !! 10000)
+        (\t -> return $! csolve t !! 1)
+        id
+        (\t -> return $! csolve t !! 10000)
+    ),
+    ((True,Original), regularSolverSlow solve),
+    ((True,SolveDup), regularSolverSlow solveDup),
+    ((True,RateDup), regularSolverSlow solveRateDup),
+    ((True,SolveDeepDup), regularSolverSlow solveDeepDup),
+    ((True,Unit), Run
+        utreeSlow
+        (\t -> return $! usolve t !! 10000)
+        (\t -> return $! usolve t !! 1)
+        id
+        (\t -> return $! usolve t !! 10000)
+    ),
+    ((True,Church), Run
+        ctreeSlow
         (\t -> return $! csolve t !! 10000)
         (\t -> return $! csolve t !! 1)
         id
@@ -185,7 +220,8 @@ vardesc SharedThunk = "add. thunk"
 vardesc SharedEvaled = "partly eval'ed"
 vardesc SharedFull = "fully eval'ed"
 
-mainStats = do
+mainStats slow = do
+    let slowT = if slow then "slow:" else ""
     printf "\\makeatletter\n"
     printf "\\begin{tabular}{l"
     forM_ [minBound..maxBound::Variant] $ \variant -> do
@@ -199,14 +235,14 @@ mainStats = do
         printf "& MB & sec."
     printf " \\\\ \\midrule \n"
     hSetBuffering stdout NoBuffering
-    forM_ (map fst runs) $ \run -> do
-        printf "%s" (runDescDesc run)
+    forM_ (map fst runs) $ \run -> when (fst run == slow) $ do
+        printf "%s" (runDescDesc (snd run))
         forM_ [minBound..maxBound::Variant] $ \variant -> do
             out <- readProcess "./PaperStats" [show run, show variant] ""
             let (_, _, alloc, time) = read out :: (String, Variant, Integer, Double)
             -- print (run, variant, alloc, time)
-            printf "& {\\def\\@currentlabel{%s}\\label{stats:%s:%s:mem}%s}" (showLargeNum alloc) (show run) (show variant) (showLargeNum alloc)
-            printf " & {\\def\\@currentlabel{%.2f}\\label{stats:%s:%s:time}%.2f}" time (show run) (show variant) time
+            printf "& {\\def\\@currentlabel{%s}\\label{stats:%s%s:%s:mem}%s}" (showLargeNum alloc) slowT (show (snd run)) (show variant) (showLargeNum alloc)
+            printf " & {\\def\\@currentlabel{%.2f}\\label{stats:%s%s:%s:time}%.2f}" time slowT (show (snd run)) (show variant) time
             return ()
         printf " \\\\\n"
     printf "\\end{tabular}\n"
@@ -215,7 +251,7 @@ mainStats = do
 showLargeNum = intercalate "\\," . map reverse . reverse . splitEvery 3 . reverse . show 
 
 
-mainRun :: RunDesc -> Variant -> S -> IO ()
+mainRun :: (Bool, RunDesc) -> Variant -> S -> IO ()
 mainRun n variant k = do
     case fromJust $ lookup n runs of
         Run{..} -> do
@@ -255,7 +291,8 @@ mainRun n variant k = do
 main = do
     args <- getArgs
     case args of 
-        [] -> mainStats
+        [] -> mainStats False
+        ["slow"] -> mainStats True
         [n,s] -> mainRun (read n) (read s) (fromIntegral (length args))
 {-
 main = do
