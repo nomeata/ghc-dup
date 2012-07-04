@@ -127,7 +127,7 @@ We propose two operations to prevent sharing in Haskell that do not require modi
 
 Thanks to the immutable nature of data in a pure functional programming language such as Haskell, there are many possibilities for sharing, i.e.\ one object in memory can used in multiple places in the program. In general, this is a good thing, as it can save both execution time (by not calculating the data again) and memory space (by not copying the data).
 
-But there are cases where sharing can hurt, and sometimes hurt badly. A famous example is the following function:
+But there are cases where sharing can hurt, and sometimes hurt badly. A famous example (\citep{wikibook,lazy-evaluators}) is the following function:
 \begin{haskell}
 let l = [1..100000000]
     f :: [Int] -> Int
