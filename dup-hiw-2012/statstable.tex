@@ -3,11 +3,77 @@
  \\
 & \multicolumn{2}{c}{no sharing}& \multicolumn{2}{c}{shared tree}& \multicolumn{2}{c}{add. thunk}& \multicolumn{2}{c}{partly eval'ed}& \multicolumn{2}{c}{fully eval'ed} \\
 & MB & sec.& MB & sec.& MB & sec.& MB & sec.& MB & sec. \\ \midrule 
-original& {\def\@currentlabel{2}\label{stats:Original:Unshared:mem}2} & {\def\@currentlabel{3.67}\label{stats:Original:Unshared:time}3.67}& {\def\@currentlabel{4\,188}\label{stats:Original:Shared:mem}4\,188} & {\def\@currentlabel{13.94}\label{stats:Original:Shared:time}13.94}& {\def\@currentlabel{4\,188}\label{stats:Original:SharedThunk:mem}4\,188} & {\def\@currentlabel{13.75}\label{stats:Original:SharedThunk:time}13.75}& {\def\@currentlabel{4\,188}\label{stats:Original:SharedEvaled:mem}4\,188} & {\def\@currentlabel{13.75}\label{stats:Original:SharedEvaled:time}13.75}& {\def\@currentlabel{4\,188}\label{stats:Original:SharedFull:mem}4\,188} & {\def\@currentlabel{17.79}\label{stats:Original:SharedFull:time}17.79} \\
-\textsf{solveDup}& {\def\@currentlabel{2}\label{stats:SolveDup:Unshared:mem}2} & {\def\@currentlabel{3.67}\label{stats:SolveDup:Unshared:time}3.67}& {\def\@currentlabel{2}\label{stats:SolveDup:Shared:mem}2} & {\def\@currentlabel{3.66}\label{stats:SolveDup:Shared:time}3.66}& {\def\@currentlabel{4\,188}\label{stats:SolveDup:SharedThunk:mem}4\,188} & {\def\@currentlabel{13.82}\label{stats:SolveDup:SharedThunk:time}13.82}& {\def\@currentlabel{4\,188}\label{stats:SolveDup:SharedEvaled:mem}4\,188} & {\def\@currentlabel{13.85}\label{stats:SolveDup:SharedEvaled:time}13.85}& {\def\@currentlabel{4\,188}\label{stats:SolveDup:SharedFull:mem}4\,188} & {\def\@currentlabel{17.69}\label{stats:SolveDup:SharedFull:time}17.69} \\
-\textsf{rateDup}& {\def\@currentlabel{2}\label{stats:RateDup:Unshared:mem}2} & {\def\@currentlabel{1.52}\label{stats:RateDup:Unshared:time}1.52}& {\def\@currentlabel{5}\label{stats:RateDup:Shared:mem}5} & {\def\@currentlabel{1.54}\label{stats:RateDup:Shared:time}1.54}& {\def\@currentlabel{5}\label{stats:RateDup:SharedThunk:mem}5} & {\def\@currentlabel{1.53}\label{stats:RateDup:SharedThunk:time}1.53}& {\def\@currentlabel{5}\label{stats:RateDup:SharedEvaled:mem}5} & {\def\@currentlabel{1.53}\label{stats:RateDup:SharedEvaled:time}1.53}& {\def\@currentlabel{4\,189}\label{stats:RateDup:SharedFull:mem}4\,189} & {\def\@currentlabel{17.91}\label{stats:RateDup:SharedFull:time}17.91} \\
-\textsf{solveDeepDup}& {\def\@currentlabel{2}\label{stats:SolveDeepDup:Unshared:mem}2} & {\def\@currentlabel{3.71}\label{stats:SolveDeepDup:Unshared:time}3.71}& {\def\@currentlabel{2}\label{stats:SolveDeepDup:Shared:mem}2} & {\def\@currentlabel{3.66}\label{stats:SolveDeepDup:Shared:time}3.66}& {\def\@currentlabel{2}\label{stats:SolveDeepDup:SharedThunk:mem}2} & {\def\@currentlabel{3.66}\label{stats:SolveDeepDup:SharedThunk:time}3.66}& {\def\@currentlabel{2}\label{stats:SolveDeepDup:SharedEvaled:mem}2} & {\def\@currentlabel{3.68}\label{stats:SolveDeepDup:SharedEvaled:time}3.68}& {\def\@currentlabel{4\,188}\label{stats:SolveDeepDup:SharedFull:mem}4\,188} & {\def\@currentlabel{17.70}\label{stats:SolveDeepDup:SharedFull:time}17.70} \\
-unit lifting& {\def\@currentlabel{1}\label{stats:Unit:Unshared:mem}1} & {\def\@currentlabel{1.19}\label{stats:Unit:Unshared:time}1.19}& {\def\@currentlabel{1}\label{stats:Unit:Shared:mem}1} & {\def\@currentlabel{1.18}\label{stats:Unit:Shared:time}1.18}& {\def\@currentlabel{1}\label{stats:Unit:SharedThunk:mem}1} & {\def\@currentlabel{1.19}\label{stats:Unit:SharedThunk:time}1.19}& {\def\@currentlabel{1}\label{stats:Unit:SharedEvaled:mem}1} & {\def\@currentlabel{1.19}\label{stats:Unit:SharedEvaled:time}1.19}& {\def\@currentlabel{2}\label{stats:Unit:SharedFull:mem}2} & {\def\@currentlabel{2.39}\label{stats:Unit:SharedFull:time}2.39} \\
-church encoding& {\def\@currentlabel{2}\label{stats:Church:Unshared:mem}2} & {\def\@currentlabel{4.20}\label{stats:Church:Unshared:time}4.20}& {\def\@currentlabel{2}\label{stats:Church:Shared:mem}2} & {\def\@currentlabel{4.18}\label{stats:Church:Shared:time}4.18}& {\def\@currentlabel{2}\label{stats:Church:SharedThunk:mem}2} & {\def\@currentlabel{4.19}\label{stats:Church:SharedThunk:time}4.19}& {\def\@currentlabel{2}\label{stats:Church:SharedEvaled:mem}2} & {\def\@currentlabel{4.20}\label{stats:Church:SharedEvaled:time}4.20}& {\def\@currentlabel{2}\label{stats:Church:SharedFull:mem}2} & {\def\@currentlabel{8.39}\label{stats:Church:SharedFull:time}8.39} \\
+original%
+&
+ {\def\@currentlabel{2}\label{stats:Original:Unshared:mem}2} &
+ {\def\@currentlabel{6.68}\label{stats:Original:Unshared:time}6.68}&
+ {\def\@currentlabel{4\,189}\label{stats:Original:Shared:mem}4\,189} &
+ {\def\@currentlabel{25.40}\label{stats:Original:Shared:time}25.40}&
+ {\def\@currentlabel{4\,188}\label{stats:Original:SharedThunk:mem}4\,188} &
+ {\def\@currentlabel{24.49}\label{stats:Original:SharedThunk:time}24.49}&
+ {\def\@currentlabel{4\,188}\label{stats:Original:SharedEvaled:mem}4\,188} &
+ {\def\@currentlabel{24.95}\label{stats:Original:SharedEvaled:time}24.95}&
+ {\def\@currentlabel{4\,189}\label{stats:Original:SharedFull:mem}4\,189} &
+ {\def\@currentlabel{30.12}\label{stats:Original:SharedFull:time}30.12} \\
+\textsf{solveDup}%
+&
+ {\def\@currentlabel{2}\label{stats:SolveDup:Unshared:mem}2} &
+ {\def\@currentlabel{6.85}\label{stats:SolveDup:Unshared:time}6.85}&
+ {\def\@currentlabel{2}\label{stats:SolveDup:Shared:mem}2} &
+ {\def\@currentlabel{6.69}\label{stats:SolveDup:Shared:time}6.69}&
+ {\def\@currentlabel{4\,188}\label{stats:SolveDup:SharedThunk:mem}4\,188} &
+ {\def\@currentlabel{24.88}\label{stats:SolveDup:SharedThunk:time}24.88}&
+ {\def\@currentlabel{4\,188}\label{stats:SolveDup:SharedEvaled:mem}4\,188} &
+ {\def\@currentlabel{24.77}\label{stats:SolveDup:SharedEvaled:time}24.77}&
+ {\def\@currentlabel{4\,189}\label{stats:SolveDup:SharedFull:mem}4\,189} &
+ {\def\@currentlabel{30.91}\label{stats:SolveDup:SharedFull:time}30.91} \\
+\textsf{rateDup}%
+&
+ {\def\@currentlabel{2}\label{stats:RateDup:Unshared:mem}2} &
+ {\def\@currentlabel{2.38}\label{stats:RateDup:Unshared:time}2.38}&
+ {\def\@currentlabel{5}\label{stats:RateDup:Shared:mem}5} &
+ {\def\@currentlabel{2.40}\label{stats:RateDup:Shared:time}2.40}&
+ {\def\@currentlabel{5}\label{stats:RateDup:SharedThunk:mem}5} &
+ {\def\@currentlabel{2.40}\label{stats:RateDup:SharedThunk:time}2.40}&
+ {\def\@currentlabel{5}\label{stats:RateDup:SharedEvaled:mem}5} &
+ {\def\@currentlabel{2.40}\label{stats:RateDup:SharedEvaled:time}2.40}&
+ {\def\@currentlabel{4\,189}\label{stats:RateDup:SharedFull:mem}4\,189} &
+ {\def\@currentlabel{31.06}\label{stats:RateDup:SharedFull:time}31.06} \\
+\textsf{solveDeepDup}%
+&
+ {\def\@currentlabel{2}\label{stats:SolveDeepDup:Unshared:mem}2} &
+ {\def\@currentlabel{6.79}\label{stats:SolveDeepDup:Unshared:time}6.79}&
+ {\def\@currentlabel{2}\label{stats:SolveDeepDup:Shared:mem}2} &
+ {\def\@currentlabel{6.66}\label{stats:SolveDeepDup:Shared:time}6.66}&
+ {\def\@currentlabel{2}\label{stats:SolveDeepDup:SharedThunk:mem}2} &
+ {\def\@currentlabel{6.87}\label{stats:SolveDeepDup:SharedThunk:time}6.87}&
+ {\def\@currentlabel{2}\label{stats:SolveDeepDup:SharedEvaled:mem}2} &
+ {\def\@currentlabel{6.70}\label{stats:SolveDeepDup:SharedEvaled:time}6.70}&
+ {\def\@currentlabel{4\,189}\label{stats:SolveDeepDup:SharedFull:mem}4\,189} &
+ {\def\@currentlabel{30.70}\label{stats:SolveDeepDup:SharedFull:time}30.70} \\
+unit lifting%
+&
+ {\def\@currentlabel{1}\label{stats:Unit:Unshared:mem}1} &
+ {\def\@currentlabel{1.80}\label{stats:Unit:Unshared:time}1.80}&
+ {\def\@currentlabel{1}\label{stats:Unit:Shared:mem}1} &
+ {\def\@currentlabel{1.79}\label{stats:Unit:Shared:time}1.79}&
+ {\def\@currentlabel{1}\label{stats:Unit:SharedThunk:mem}1} &
+ {\def\@currentlabel{1.80}\label{stats:Unit:SharedThunk:time}1.80}&
+ {\def\@currentlabel{1}\label{stats:Unit:SharedEvaled:mem}1} &
+ {\def\@currentlabel{1.80}\label{stats:Unit:SharedEvaled:time}1.80}&
+ {\def\@currentlabel{1}\label{stats:Unit:SharedFull:mem}1} &
+ {\def\@currentlabel{3.61}\label{stats:Unit:SharedFull:time}3.61} \\
+church encoding%
+&
+ {\def\@currentlabel{2}\label{stats:Church:Unshared:mem}2} &
+ {\def\@currentlabel{7.17}\label{stats:Church:Unshared:time}7.17}&
+ {\def\@currentlabel{2}\label{stats:Church:Shared:mem}2} &
+ {\def\@currentlabel{7.23}\label{stats:Church:Shared:time}7.23}&
+ {\def\@currentlabel{2}\label{stats:Church:SharedThunk:mem}2} &
+ {\def\@currentlabel{7.21}\label{stats:Church:SharedThunk:time}7.21}&
+ {\def\@currentlabel{2}\label{stats:Church:SharedEvaled:mem}2} &
+ {\def\@currentlabel{7.20}\label{stats:Church:SharedEvaled:time}7.20}&
+ {\def\@currentlabel{2}\label{stats:Church:SharedFull:mem}2} &
+ {\def\@currentlabel{14.34}\label{stats:Church:SharedFull:time}14.34} \\
 \end{tabular}
 \makeatother

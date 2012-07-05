@@ -236,13 +236,13 @@ mainStats slow = do
     printf " \\\\ \\midrule \n"
     hSetBuffering stdout NoBuffering
     forM_ (map fst runs) $ \run -> when (fst run == slow) $ do
-        printf "%s" (runDescDesc (snd run))
+        printf "%s%%\n" (runDescDesc (snd run))
         forM_ [minBound..maxBound::Variant] $ \variant -> do
             out <- readProcess "./PaperStats" [show run, show variant] ""
             let (_, _, alloc, time) = read out :: (String, Variant, Integer, Double)
             -- print (run, variant, alloc, time)
-            printf "& {\\def\\@currentlabel{%s}\\label{stats:%s%s:%s:mem}%s}" (showLargeNum alloc) slowT (show (snd run)) (show variant) (showLargeNum alloc)
-            printf " & {\\def\\@currentlabel{%.2f}\\label{stats:%s%s:%s:time}%.2f}" time slowT (show (snd run)) (show variant) time
+            printf "&\n {\\def\\@currentlabel{%s}\\label{stats:%s%s:%s:mem}%s}" (showLargeNum alloc) slowT (show (snd run)) (show variant) (showLargeNum alloc)
+            printf " &\n {\\def\\@currentlabel{%.2f}\\label{stats:%s%s:%s:time}%.2f}" time slowT (show (snd run)) (show variant) time
             return ()
         printf " \\\\\n"
     printf "\\end{tabular}\n"
