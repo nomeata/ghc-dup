@@ -833,9 +833,9 @@ z &\in \sVal &&\Coloneqq \sLam x e
 \end{alignat*}
 His lambda terms are normalized, i.e.\ all bound variables are distinct and all applications are applications of an expression to a variable.
 
-To avoid having to introduce constructors and case expressions as well well we assume $\sDup$ and $\sDeepDup$ to return their result unboxed. This captures the semantics of the Haskell expression \li!(\x. let Box y = dup x in y)!.
+To avoid having to introduce constructors and case expressions as well we assume $\sDup$ and $\sDeepDup$ to return their result unboxed. This captures the semantics of the Haskell expression \li!(\x. let Box y = dup x in y)!.
 
-In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Var} and \sRule{Let}, we add the two rules \sRule{Dup} and \sRule{Deep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $\fresh x$ and $\fresh y_1,\ldots,\fresh y_n$ are completely fresh.
+In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Var} and \sRule{Let}, we add the three rules \sRule{Dup}, \sRule{Deep} and \sRule{DeepDeep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $\fresh x$ and $\fresh y_1,\ldots,\fresh y_n$ are completely fresh.
 
 In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding occurring in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
 
@@ -877,12 +877,19 @@ x\mapsto e,
 \fresh y_n \mapsto \sDeepDup y_n
 } {\fresh x} \Delta z 
 \\
+e \ne \sDeepDup \_
+\\
 \fv e = \{y_1,\ldots,y_n\}
 \\
 \fresh x,\ \fresh y_1,\ldots,y_n \text{ fresh}
 }
 {\sred{\Gamma,x\mapsto e}{\sDeepDup x} \Delta z}
 \sRule{Deep}
+\and
+\inferrule
+{\sred{\Gamma,x\mapsto \sDeepDup y}{\sDeepDup y} \Delta z}
+{\sred{\Gamma,x\mapsto \sDeepDup y}{\sDeepDup x} \Delta z}
+\sRule{DeepDeep}
 \end{mathpar}
 \caption{Natural semantics extended for \li-dup- and \li-deepDup-}
 \label{fig:semrules}
@@ -1215,9 +1222,19 @@ Our implementation is but a prototype; it does not yet work in all situations. O
 
 It should be possible for \li-dup- to support static thunks with some additional information in the compiled code.  Currently, when execution enters a static thunk and the stack and heap checks have been passed, the thunk is replaced by an indirection into the heap and an update frame is pushed on the stack. If there was a way to jump over the code that sets up the indirection and update frame, e.g.\ via an alternative entry point included in the info table, \li-dup- could create a thunk on the heap that calls the static thunk via this route, effectively kicking off evaluation without affecting the original static thunk.  For \li-deepDup- things are more complicated, as references to static objects are not part of the heap object, but are scattered throughout the machine code. Moving these references to the heap would solve the issue here at hand, but is clearly too expensive.
 
-Also, the prototype does not take multithreaded programs into account and will likely produce bad results when used in such an environment, e.g.\ when another thread replaces a thunk by an indirection during the thread copy loop in \ci-dupClosure-. Similarly, there are several specialized closure type (array, mutable references, weak pointers and others \citep[page HeapObjects]{commentary}). For each of them, we would need to determine whether they can be safely duplicated and if so, whether this is actually useful.
+Also, the prototype does not take multithreaded programs into account and will likely produce bad results when used in such an environment, e.g.\ when another thread replaces a thunk by an indirection during the thread copy loop in \ci-dupClosure-. Similarly, there are several specialized closure type (arrays, mutable references, weak pointers and others \citep[page HeapObjects]{commentary}). For each of them, we would need to determine whether they can be safely duplicated and if so, whether this is actually useful.
 
 Function closures need special treatment as there are cases where code assumes a certain reference to always be a function closure and never a thunk that will evaluate to a function. But this is what \li-deepDup- wants to create. Currently, \li-deepDup- will in this case leave the reference as it is. A solution would be to copy the function closure eagerly, so that the reference in the copy again points to a function closure. This would require more sophisticated code to detect cycles. 
+
+The programmer might, by accident, try to use \li-deepDup- in a recursive fashion, so that with each recursion, one new layer of \li-deepDup- thunks is wrapped around the arguments:
+\begin{haskell}
+solve :: Tree -> [S]
+solve t = case deepDup t of
+    Box (Node n ts) -> n : solve picked
+  where
+  ...
+\end{haskell}
+To avoid this, \li-deepDup- would have to detect the thunks it creates (their info table is \ci-stg_ap_2_upd_info- and the first payload argument points to \li-Dup_deepDupFun_closure-) and instead of wrapping the thunk, it could copy it.
 
 \section{Conclusions and further work}
 
