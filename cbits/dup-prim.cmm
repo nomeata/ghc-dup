@@ -49,7 +49,6 @@ deepDupClosure
     W_ clos;
     clos = UNTAG(R1);
 
-    //foreign "C" printObj(clos "ptr") [];
 
     W_ info;
     info = %GET_STD_INFO(clos);
@@ -70,6 +69,7 @@ deepDupClosure
 	bytes = WDS(len) + ptrs * SIZEOF_StgAP + WDS (ptrs);
 
 	ALLOC_PRIM (bytes, R1_PTR, dupClosure);
+        //foreign "C" printObj(clos "ptr") [];
 
 	W_ copy;
 	copy = Hp - WDS(len) + WDS(1);
@@ -82,6 +82,14 @@ deepDupClosure
 	     p = p + 1;
 	     goto for1;
 	}
+
+        // We need to short-ciruit deepDup calls here
+        if (StgHeader_info(copy) == stg_ap_2_upd_info
+            &&
+            StgThunk_payload(copy,0) == ghczmdupzm0zi1_GHCziDup_deepDupFun_closure) {
+            goto done;
+        }
+
 	
 	W_ thunks;
 	thunks = Hp - bytes + WDS(1);
@@ -158,6 +166,7 @@ deepDupClosure
 	    goto for2;
 	}
 
+        done:
 	//foreign "C" printObj(copy "ptr") [];
 	RET_P(copy);
     } else {
