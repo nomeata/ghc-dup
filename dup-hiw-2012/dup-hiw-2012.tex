@@ -833,9 +833,11 @@ z &\in \sVal &&\Coloneqq \sLam x e
 \end{alignat*}
 His lambda terms are normalized, i.e.\ all bound variables are distinct and all applications are applications of an expression to a variable.
 
+The set of free variables of an expression $e$ is $\fv e$. Similarly, the set of unguarded free variables $\ufv e$ of an expression $e$, is inductively defined inductively just like $\fv e$ with the exception that $\ufv {\sDeepDup x} = \emptyset$. A value $\hat z$ is $z$ with all bound variables renamed to completely fresh variables.
+
 To avoid having to introduce constructors and case expressions as well we assume $\sDup$ and $\sDeepDup$ to return their result unboxed. This captures the semantics of the Haskell expression \li!(\x. let Box y = dup x in y)!.
 
-In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Var} and \sRule{Let}, we add the three rules \sRule{Dup}, \sRule{Deep} and \sRule{DeepDeep} in Figure \ref{fig:semrules}. In these rules, $\fv e$ denotes the set of free variables of $e$, $\hat z$ is $z$ with all bound variables renamed to completely fresh variables and the variables $\fresh x$ and $\fresh y_1,\ldots,\fresh y_n$ are completely fresh.
+In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Var} and \sRule{Let}, we add the two rules \sRule{Dup}  and \sRule{Deep} in Figure~\ref{fig:semrules}. Note the similarity of \sRule{Dup} to to \sRule{Var}. The essential difference is that with $\sDup$, the expression on the heap is \emph{not} updated with the result of the computation. The rule for $\sDeepDup$ does the same and additionally guards the free variables by further calls to $\sDeepDup$. The use of $\ufv$ instead of $\fv$ in the rule \sRule{DeepDup} is required to avoid a livelock if $\sDeepDup x$ is evaluated and $x$ is itself bound to $\sDeepDup y$.
 
 In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding occurring in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
 
@@ -863,33 +865,26 @@ In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly n
 \sRule{Let}
 \and
 \inferrule
-{\sred{\Gamma,x\mapsto e, \fresh x\mapsto \hat e} {\fresh x} \Delta z \\ \fresh x \text{ fresh}}
-{\sred{\Gamma,x\mapsto e}{\sDup x} \Delta z}
+{\sred{\Gamma}{e} \Delta z}
+{\sred{\Gamma,x\mapsto e}{\sDup x} {\Delta,x\mapsto e} z}
 \sRule{Dup}
 \and
 \inferrule
 {
 \sred{
 \Gamma,
-x\mapsto e,
-\fresh x\mapsto \hat e[\fresh y_1/y_1,\ldots, \fresh y_n/y_n],
 \fresh y_1 \mapsto \sDeepDup y_1,\ldots,
 \fresh y_n \mapsto \sDeepDup y_n
-} {\fresh x} \Delta z 
+}{
+e[\fresh y_1/y_1,\ldots, \fresh y_n/y_n],
+} \Delta z 
+\\\\
+\ufv e = \{y_1,\ldots,y_n\}
 \\
-e \ne \sDeepDup \_
-\\
-\fv e = \{y_1,\ldots,y_n\}
-\\
-\fresh x,\ \fresh y_1,\ldots,y_n \text{ fresh}
+\fresh y_1,\ldots,\fresh y_n \text{ fresh}
 }
-{\sred{\Gamma,x\mapsto e}{\sDeepDup x} \Delta z}
+{\sred{\Gamma,x\mapsto e}{\sDeepDup x} {\Delta,x\mapsto e} z}
 \sRule{Deep}
-\and
-\inferrule
-{\sred{\Gamma,x\mapsto \sDeepDup y}{\sDeepDup y} \Delta z}
-{\sred{\Gamma,x\mapsto \sDeepDup y}{\sDeepDup x} \Delta z}
-\sRule{DeepDeep}
 \end{mathpar}
 \caption{Natural semantics extended for \li-dup- and \li-deepDup-}
 \label{fig:semrules}
@@ -905,7 +900,7 @@ Besides the natural semantics, Launchbury also defines a denotational semantics.
 \]
 as functions from variables into values. He writes $\rho \le \rho'$ if $\rho'$ extends $\rho$, i.e. they differ only for variables where $\rho$ is bottom. The expression $\dsem e \rho$ is the value of the expression $e$ in the environment $\rho$.
 
-The semantics of a heap $\Gamma$ is given by $\esem \Gamma \rho$, which is is the environment $\rho$ updated by the values specified in the heap. This is defined as a fixed point, as the heap may contain recursive references:
+The semantics of a heap $\Gamma$ is given by $\esem \Gamma \rho$, which is the environment $\rho$ updated by the values specified in the heap. This is defined as a fixed point, as the heap may contain recursive references:
 \begin{multline*}
 \esem{ x_1\mapsto e_1,\ldots,x_n\mapsto e_n}\rho \\
 = \mu \rho'. \rho \sqcup (x_1 \mapsto \dsem{e_1}{\rho'}) \sqcup \cdots \sqcup (x_n \mapsto \dsem{e_n}{\rho'})
@@ -915,8 +910,8 @@ This definition maks sense on environments $\rho$ that are consistent with $\Gam
 Launchbury proves his natural semantics to be correct with respect to the denotational semantics. 
 Naturally, we want to preserve this property. Our new primitives should be invisible to the denotational semantics, hence we extend the semantics function as follows:
 \begin{align*}
-\dsem{\sDup x}\rho &\coloneqq \dsem{x}\rho \\
-\dsem{\sDeepDup x}\rho &\coloneqq \dsem{x}\rho.
+\dsem{\sDup x}\rho &\coloneqq \dsem{x}\rho = \rho(x)\\
+\dsem{\sDeepDup x}\rho &\coloneqq \dsem{x}\rho= \rho(x).
 \end{align*}
 
 \begin{theorem}[Theorem 2 from \citep{launchbury}]
@@ -931,18 +926,14 @@ If $\sred\Gamma e \Delta z$, then for all environments $\rho$,
 The proof in \citep{launchbury} is by induction on the derivation; we only have to give it for the two new cases corresponding to the rules \sRule{Dup} and \sRule{Deep}. We assume that the fresh variables in the rules are chosen to be undefined in $\rho$:
 
 \case{$\sDup x$}
-By induction, we know (i) $\dsem{\fresh x}{\esem{\Gamma, x \mapsto e, \fresh x \mapsto \hat e} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma, x \mapsto e, \fresh x \mapsto \hat e} \rho \le \esem \Delta \rho$.
+By induction, we know (i) $\dsem{e}{\esem \Gamma \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem \Gamma \rho \le \esem \Delta \rho$.
 
-For the first part, we have 
+The second part, $\esem {\Gamma,x\mapsto e} \rho \le \esem {\Delta,x\mapsto e}$, follows from (ii).
+
+Using this, we show the first part:
 \begin{align*}
 &\phantom{{}={}}\dsem{\sDup x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{x}{\esem{\Gamma, x\mapsto e}\rho}\\
-%&= \esem{\Gamma, x\mapsto e}\rho\ x\\
-&= \dsem{e}{\esem{\Gamma, x\mapsto e}\rho}\\
-&= \dsem{\hat e}{\esem{\Gamma, x\mapsto e}\rho}\\
-&= \dsem{\hat e}{\esem{\Gamma, x\mapsto e, \fresh x \mapsto \hat e}\rho} && \text{$\fresh x$ fresh}\\
-%&= \esem{\Gamma, x\mapsto e, \fresh x \mapsto e}\rho\ \fresh x \\
-&= \dsem{\fresh x}{\esem{\Gamma, x\mapsto e, \fresh x \mapsto \hat e}\rho} \\
 &= \dsem{z}{\esem \Delta \rho} &&\text{by (i)}
 \end{align*}
 as desired.
@@ -993,16 +984,11 @@ with $\fv{e'} \subseteq \{x_1',\ldots,x_n'\}$. If $\sred \Gamma e \Delta z$ and 
 \end{theorem}
 This implies that any value on the heap $\Delta$ that was created during the evaluation of $e$ can be freed afterwards.
 
-The theorem is an immediate consequence of statement (a) of the following Lemma~\ref{lem:deepdup}, with $\Gamma_0 = \Gamma$, for which we need to define two auxiliary notions:
-\begin{itemize}
-\item 
-The set of unguarded free variables $\ufv e$ of an expression $e$, which is defined inductively just like $\fv e$ with the exception that $\ufv {\sDeepDup x} = \emptyset$, and 
-\item the unguarded reachable set $\ur{\Gamma}{e}$ of an expression $e$ in a context $\Gamma$, mutually defined for all expressions as the smallest sets which fulfill the equation
+The theorem is an immediate consequence of statement (a) of the following Lemma~\ref{lem:deepdup}, with $\Gamma_0 = \Gamma$, for which we need the notion the unguarded reachable set $\ur{\Gamma}{e}$ of an expression $e$ in a context $\Gamma$, which is mutually defined for all expressions as the smallest sets which fulfill the equation
 \[
 \ur{\Gamma}{e} = \ufv e \cup \textstyle\bigcup_{x\in \ufv e}\ur{\Gamma}{\Gamma\ x}.
 \]
 Note that $\ufv e \subseteq \ufv {e'}$ implies $\ur\Gamma e \subseteq \ur\Gamma {e'}$. %and, more general, $\ufv e \subseteq \ufv {e'} \cup V$ implies $\ur\Gamma e \subseteq \ur\Gamma {e'} \cup V$ if $V$ is TODO.
-\end{itemize}
 
 \begin{lemma}
 \label{lem:deepdup}
