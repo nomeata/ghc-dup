@@ -865,26 +865,33 @@ In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly n
 \sRule{Let}
 \and
 \inferrule
-{\sred{\Gamma}{e} \Delta z}
-{\sred{\Gamma,x\mapsto e}{\sDup x} {\Delta,x\mapsto e} z}
+{\sred{\Gamma,x\mapsto e, \fresh x\mapsto \hat e} {\fresh x} \Delta z \\ \fresh x \text{ fresh}}
+{\sred{\Gamma,x\mapsto e}{\sDup x} \Delta z}
 \sRule{Dup}
 \and
 \inferrule
 {
 \sred{
 \Gamma,
+x\mapsto e,
+\fresh x\mapsto \hat e[\fresh y_1/y_1,\ldots, \fresh y_n/y_n],
 \fresh y_1 \mapsto \sDeepDup y_1,\ldots,
 \fresh y_n \mapsto \sDeepDup y_n
-}{
-e[\fresh y_1/y_1,\ldots, \fresh y_n/y_n],
-} \Delta z 
-\\\\
-\ufv e = \{y_1,\ldots,y_n\}
+} {\fresh x} \Delta z 
 \\
-\fresh y_1,\ldots,\fresh y_n \text{ fresh}
+e \ne \sDeepDup \_
+\\
+\fv e = \{y_1,\ldots,y_n\}
+\\
+\fresh x,\ \fresh y_1,\ldots,y_n \text{ fresh}
 }
-{\sred{\Gamma,x\mapsto e}{\sDeepDup x} {\Delta,x\mapsto e} z}
+{\sred{\Gamma,x\mapsto e}{\sDeepDup x} \Delta z}
 \sRule{Deep}
+\and
+\inferrule
+{\sred{\Gamma,x\mapsto \sDeepDup y}{\sDeepDup y} \Delta z}
+{\sred{\Gamma,x\mapsto \sDeepDup y}{\sDeepDup x} \Delta z}
+\sRule{DeepDeep}
 \end{mathpar}
 \caption{Natural semantics extended for \li-dup- and \li-deepDup-}
 \label{fig:semrules}
@@ -910,8 +917,8 @@ This definition maks sense on environments $\rho$ that are consistent with $\Gam
 Launchbury proves his natural semantics to be correct with respect to the denotational semantics. 
 Naturally, we want to preserve this property. Our new primitives should be invisible to the denotational semantics, hence we extend the semantics function as follows:
 \begin{align*}
-\dsem{\sDup x}\rho &\coloneqq \dsem{x}\rho = \rho(x)\\
-\dsem{\sDeepDup x}\rho &\coloneqq \dsem{x}\rho= \rho(x).
+\dsem{\sDup x}\rho &\coloneqq \dsem{x}\rho \\
+\dsem{\sDeepDup x}\rho &\coloneqq \dsem{x}\rho.
 \end{align*}
 
 \begin{theorem}[Theorem 2 from \citep{launchbury}]
@@ -926,14 +933,18 @@ If $\sred\Gamma e \Delta z$, then for all environments $\rho$,
 The proof in \citep{launchbury} is by induction on the derivation; we only have to give it for the two new cases corresponding to the rules \sRule{Dup} and \sRule{Deep}. We assume that the fresh variables in the rules are chosen to be undefined in $\rho$:
 
 \case{$\sDup x$}
-By induction, we know (i) $\dsem{e}{\esem \Gamma \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem \Gamma \rho \le \esem \Delta \rho$.
+By induction, we know (i) $\dsem{\fresh x}{\esem{\Gamma, x \mapsto e, \fresh x \mapsto \hat e} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma, x \mapsto e, \fresh x \mapsto \hat e} \rho \le \esem \Delta \rho$.
 
-The second part, $\esem {\Gamma,x\mapsto e} \rho \le \esem {\Delta,x\mapsto e}$, follows from (ii).
-
-Using this, we show the first part:
+For the first part, we have 
 \begin{align*}
 &\phantom{{}={}}\dsem{\sDup x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{x}{\esem{\Gamma, x\mapsto e}\rho}\\
+%&= \esem{\Gamma, x\mapsto e}\rho\ x\\
+&= \dsem{e}{\esem{\Gamma, x\mapsto e}\rho}\\
+&= \dsem{\hat e}{\esem{\Gamma, x\mapsto e}\rho}\\
+&= \dsem{\hat e}{\esem{\Gamma, x\mapsto e, \fresh x \mapsto \hat e}\rho} && \text{$\fresh x$ fresh}\\
+%&= \esem{\Gamma, x\mapsto e, \fresh x \mapsto e}\rho\ \fresh x \\
+&= \dsem{\fresh x}{\esem{\Gamma, x\mapsto e, \fresh x \mapsto \hat e}\rho} \\
 &= \dsem{z}{\esem \Delta \rho} &&\text{by (i)}
 \end{align*}
 as desired.
