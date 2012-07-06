@@ -784,7 +784,7 @@ Unfortunately, it requires a thorough refactoring of both the data generating an
 
 The church encoding pattern shows good and predictable memory performance, but exhibits slightly worse runtime behavior. The cases where it is ahead of other approaches it wins only due to the garbage collector overhead induced by unprevented sharing. As the previous pattern, it requires extensive refactoring.
 
-Note that the numbers in the last the last column are not comletely compareable, as there is no such thing as a fully evaluated \li-UTree- \li-CTree-. Therefore, the run-time doubles quite exactly as expected, while the original code can benefit from an already evaluated tree.
+Note that the numbers in the last the last column are not comletely compareable, as there is no such thing as a fully evaluated \li-UTree- or \li-CTree-. Therefore, the run-time doubles quite exactly as expected, while the original code can benefit from an already evaluated tree. TODO Not true, why?
 
 Our primitives come with very small overhead when applied to data that is actually unshared, as we show in the first column. In fact, careful use of \li-dup- can improve performance noticeably even if only small pieces of data can be un-shared and thus freed quickly. While \li-dup- is subtle to use, \li-deepDup- is robust and its effect is more precisely defined, as shown in the next section.
 
