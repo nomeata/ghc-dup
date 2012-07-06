@@ -221,6 +221,9 @@ vardesc SharedEvaled = "partly eval'ed"
 vardesc SharedFull = "fully eval'ed"
 vardesc RunTwice = "run twice"
 
+skipped = [(SharedEvaled, Unit), (SharedEvaled, Church),
+           (SharedFull, Unit), (SharedFull, Church)]
+
 mainStats slow = do
     let slowT = if slow then "slow:" else ""
     printf "\\makeatletter\n"
@@ -238,7 +241,10 @@ mainStats slow = do
     hSetBuffering stdout NoBuffering
     forM_ (map fst runs) $ \run -> when (fst run == slow) $ do
         printf "%s%%\n" (runDescDesc (snd run))
-        forM_ [minBound..maxBound::Variant] $ \variant -> do
+        forM_ [minBound..maxBound::Variant] $ \variant ->
+            if (variant, snd run) `elem` skipped
+            then putStr "&\n&\n"
+            else do
             out <- readProcess "./PaperStats" [show run, show variant] ""
             let (_, _, alloc, time) = read out :: (String, Variant, Integer, Double)
             -- print (run, variant, alloc, time)
