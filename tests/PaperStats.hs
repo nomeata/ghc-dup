@@ -27,13 +27,13 @@ data Tree = Node Word32 [Tree]
 firstChild (Node _ (t:_)) = t
 value n = popCount n
 
-countDown :: Word -> Bool
+countDown :: Word32 -> Bool
 countDown 0 = True
 countDown n = countDown (n-1)
 {-# NOINLINE countDown #-}
 
 succs n = [n * 3, n * 5, n * 7, n * 9]
-succsSlow n = if countDown (2^34) then [n * 3, n * 5, n * 7, n * 9] else []
+succsSlow n = if countDown (min (2^23) n) then [n * 3, n * 5, n * 7, n * 9] else []
 
 -- CTree stuff 
 newtype CTree = CTree { unCTree :: forall a. (S -> [a] -> a) -> a }
@@ -46,7 +46,7 @@ ctree :: S -> CTree
 ctree s = CTree $ \f -> f s $ map (\s' -> unCTree (ctree s') f) (succs s)
 
 ctreeSlow :: S -> CTree
-ctreeSlow s = CTree $ \f -> f s $ map (\s' -> unCTree (ctree s') f) (succsSlow s)
+ctreeSlow s = CTree $ \f -> f s $ map (\s' -> unCTree (ctreeSlow s') f) (succsSlow s)
 
 
 crate :: Int -> CTree -> Int
@@ -74,7 +74,7 @@ csolve t = fst (unCTree t csolve')
 data UTree' = UNode S [UTree]
 type UTree = () -> UTree'
 utree n = \_ -> UNode n (map utree (succs n))
-utreeSlow n = \_ -> UNode n (map utree (succsSlow n))
+utreeSlow n = \_ -> UNode n (map utreeSlow (succsSlow n))
 
 usolve :: UTree -> [S]
 usolve t = usolve' (t ())
@@ -93,7 +93,7 @@ urate d t = case t () of (UNode _ ts) -> maximum (map (urate (d-1)) ts)
 
 t1 = tree 1
 tree n = Node n (map tree (succs n))
-treeSlow n = Node n (map tree (succsSlow n))
+treeSlow n = Node n (map treeSlow (succsSlow n))
 
 depth = 4
 
