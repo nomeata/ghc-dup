@@ -209,7 +209,7 @@ Assume a constant number of successors $b$, $b>0$, and that the value of \li-dep
 
 \newcommand{\stats}[1]{\ref*{#1}}
 More concretely with $d=4$, $b=4$, \li-type S = Word32- and a very cheap \li-succs- and \li-value- functions, this program requires \stats{stats:Original:Shared:mem}~MB of system memory (as reported by the GHC runtime as “total memory in use” when passed the \ci!-s! option) and runs in \stats{stats:Original:Shared:time} seconds.%
-\footnote{All statistics are obtained on a machine with 2.5~GHz and 6~GB of RAM. The complete code used to generate these statistics is available in the \ci!ghc-dup! repository at \url{http://darcs.nomeata.de/ghc-dup}.} Sharing is indeed the problem here: If we remove the last line of \li-main-, the program runs in \stats{stats:Original:Unshared:mem}~MB of memory and takes \stats{stats:Original:Unshared:time} seconds.
+\footnote{All statistics are obtained on a machine with 2~GHz and sufficient (32~GB) RAM. The complete code used to generate these statistics is available in the \ci!ghc-dup! repository at \url{http://darcs.nomeata.de/ghc-dup}.} Sharing is indeed the problem here: If we remove the last line of \li-main-, the program runs in \stats{stats:Original:Unshared:mem}~MB of memory and takes \stats{stats:Original:Unshared:time} seconds.
 
 \section{Unsharing the example}
 \label{sec:unsharing}
