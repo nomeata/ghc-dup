@@ -658,9 +658,11 @@ We want to improve the space performance of the program in the example and thus,
 \item an otherwise unreferenced tree, i.e.\ the example code without the last line of the main function,
 \item a shared, unevaluated tree as shown in Figure \ref{fig:ex},
 \item a shared, unevaluated tree wrapped in another thunk, by passing \li-(fstChild t)- to \li-solve-,
-\item a shared tree that has been partly evaluated forcing \li-seq (fstChild t)- before passing \li-t- to the solver and
-\item a shared tree that has been fully evaluated tree by solving the problem twice in a row.
+\item a shared tree that has been partly evaluated forcing \li-seq (fstChild t)- before passing \li-t- to the solver,
+\item a shared tree that has been fully evaluated tree by solving the problem twice in a row and
+\item a shared, unevaluated tree that is processed twice by the solver.
 \end{itemize}
+In the two variants based on refactoring, the data type used for the tree does not allow for partial or full evaluation, so these runs are omitted.
 
 \subsection{Using dup}
 
@@ -774,7 +776,7 @@ Note, though, that applying this pattern to the list data type turns a list into
 \centering
 \input{statstable-slow}
 \caption{Time and space performance for $b=4$ and $d=4$ and an expensive \li-succs- function.}
-\label{fig:stats}
+\label{fig:statsexpensive}
 \end{figure*}
 
 \subsection{Comparison and interpretation}
@@ -784,10 +786,9 @@ Unfortunately, it requires a thorough refactoring of both the data generating an
 
 The church encoding pattern shows good and predictable memory performance, but exhibits slightly worse runtime behavior. The cases where it is ahead of other approaches it wins only due to the garbage collector overhead induced by unprevented sharing. As the previous pattern, it requires extensive refactoring.
 
-Note that the numbers in the last the last column are not comletely compareable, as there is no such thing as a fully evaluated \li-UTree- or \li-CTree-. Therefore, the run-time doubles quite exactly as expected, while the original code can benefit from an already evaluated tree. TODO Not true, why?
-
 Our primitives come with very small overhead when applied to data that is actually unshared, as we show in the first column. In fact, careful use of \li-dup- can improve performance noticeably even if only small pieces of data can be un-shared and thus freed quickly. While \li-dup- is subtle to use, \li-deepDup- is robust and its effect is more precisely defined, as shown in the next section.
 
+Obviously, avoiding sharing is a bad idea when the result is expensive to create. Figure~\ref{fig:statsexpensive} runs the same benchmark with an expensive (but otherwise equal) \li-succs- function. If the tree needs to be processed twice, then throwing the result away after the first rune (as done in the last column) results in a serious loss of run-time performance. On the other hand, if the memory footprint becomes large than the available memory, being able to run the program slowly is still better than not being able to run it at all, so even in this case there can be uses for \li-dup- and \li-deepDup-.
 
 \section{A natural semantics}
 \label{sec:semantics}
