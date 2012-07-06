@@ -835,9 +835,12 @@ His lambda terms are normalized, i.e.\ all bound variables are distinct and all 
 
 The set of free variables of an expression $e$ is $\fv e$. Similarly, the set of unguarded free variables $\ufv e$ of an expression $e$, is inductively defined inductively just like $\fv e$ with the exception that $\ufv {\sDeepDup x} = \emptyset$. A value $\hat z$ is $z$ with all bound variables renamed to completely fresh variables.
 
-To avoid having to introduce constructors and case expressions as well we assume $\sDup$ and $\sDeepDup$ to return their result unboxed. This captures the semantics of the Haskell expression \li!(\x. let Box y = dup x in y)!.
+To avoid having to introduce constructors and case expressions as well we assume $\sDup$ and $\sDeepDup$ to return their result without the wrapping in \li-Box-. This captures the semantics of the Haskell expression\nopagebreak
+\begin{haskell}
+(\x. let Box y = dup x in y) :: a -> a.
+\end{haskell}
 
-In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Var} and \sRule{Let}, we add the two rules \sRule{Dup}  and \sRule{Deep} in Figure~\ref{fig:semrules}. Note the similarity of \sRule{Dup} to to \sRule{Var}. The essential difference is that with $\sDup$, the expression on the heap is \emph{not} updated with the result of the computation. The rule for $\sDeepDup$ does the same and additionally guards the free variables by further calls to $\sDeepDup$. The use of $\ufv$ instead of $\fv$ in the rule \sRule{DeepDup} is required to avoid a livelock if $\sDeepDup x$ is evaluated and $x$ is itself bound to $\sDeepDup y$.
+In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Var} and \sRule{Let}, we add the two rules \sRule{Dup}  and \sRule{Deep} in Figure~\ref{fig:semrules}. The use of $\ufv$ instead of $\fv$ in the rule \sRule{DeepDup} is required to avoid a livelock if $\sDeepDup x$ is evaluated while $x$ is itself bound to $\sDeepDup y$.
 
 In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding occurring in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
 
@@ -879,19 +882,12 @@ x\mapsto e,
 \fresh y_n \mapsto \sDeepDup y_n
 } {\fresh x} \Delta z 
 \\
-e \ne \sDeepDup \_
-\\
-\fv e = \{y_1,\ldots,y_n\}
+\ufv e = \{y_1,\ldots,y_n\}
 \\
 \fresh x,\ \fresh y_1,\ldots,y_n \text{ fresh}
 }
 {\sred{\Gamma,x\mapsto e}{\sDeepDup x} \Delta z}
 \sRule{Deep}
-\and
-\inferrule
-{\sred{\Gamma,x\mapsto \sDeepDup y}{\sDeepDup y} \Delta z}
-{\sred{\Gamma,x\mapsto \sDeepDup y}{\sDeepDup x} \Delta z}
-\sRule{DeepDeep}
 \end{mathpar}
 \caption{Natural semantics extended for \li-dup- and \li-deepDup-}
 \label{fig:semrules}
@@ -1075,7 +1071,7 @@ Statement (c) follows immediately as $\fresh x$ is fresh.
 
 \case{$\sDeepDup x$}
 Let $\Gamma'$ denote the heap $\Gamma, x\mapsto e, \fresh x\mapsto \hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n],\allowbreak \fresh y_1 \mapsto \sDeepDup y_1,\allowbreak \ldots,\allowbreak \fresh y_1 \mapsto \sDeepDup y_1$.
-Recall that, by definition, $\ufv {\sDeepDup x}=\emptyset$, hence $\ur{\Gamma'}{\sDeepDup x} = \emptyset$, and $\ufv{e} \subseteq \fv{e}$. So 
+Recall that, by definition, $\ufv {\sDeepDup x}=\emptyset$, hence $\ur{\Gamma'}{\sDeepDup x} = \emptyset$. So
 \begin{align*}
 \ur{\Gamma'}{\fresh x}
 &= \{\fresh x\} \cup \ur{\Gamma'}{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]} \\
@@ -1084,7 +1080,7 @@ Recall that, by definition, $\ufv {\sDeepDup x}=\emptyset$, hence $\ur{\Gamma'}{
 &\cup \ufv{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]}\\
 &\cup \textstyle\bigcup_{z \in \ufv{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]}} \ur{\Gamma'}{\Gamma' \ z}
 \end{aligned}\\
-&\subseteq \{\fresh x\}
+&= \{\fresh x\}
 \begin{aligned}[t]
 &\cup \{\fresh y_1,\ldots, \fresh y_n\}\\
 &\cup \textstyle\bigcup_{i=1,\ldots,n} \ur{\Gamma'}{\Gamma'\ \fresh y_i}
