@@ -212,13 +212,14 @@ runs = [
     )
     ]
 
-data Variant = Unshared | Shared | SharedThunk | SharedEvaled | SharedFull deriving (Read, Show, Enum, Bounded)
+data Variant = Unshared | Shared | SharedThunk | SharedEvaled | SharedFull | RunTwice deriving (Eq, Read, Show, Enum, Bounded)
 
 vardesc Unshared = "no sharing"
 vardesc Shared = "shared tree"
 vardesc SharedThunk = "add. thunk"
 vardesc SharedEvaled = "partly eval'ed"
 vardesc SharedFull = "fully eval'ed"
+vardesc RunTwice = "run twice"
 
 mainStats slow = do
     let slowT = if slow then "slow:" else ""
@@ -280,6 +281,13 @@ mainRun n variant k = do
                 SharedFull -> do
                     let t = gTree k
                     gEvalAll t
+                    performGC
+                    gSolve t
+                    performGC
+                    gDosomethingwith t
+                RunTwice -> do
+                    let t = gTree k
+                    gSolve t
                     performGC
                     gSolve t
                     performGC
