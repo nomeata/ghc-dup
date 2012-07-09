@@ -1185,7 +1185,7 @@ dupClosure {
 \label{fig:dupcode}
 \end{figure}
 
-As discussed in Section \ref{sec:deepdup}, this simple approach is not always sufficient, and we want a recursive variant, \li-deepDup-. This function, shown in Figure \ref{fig:deepdupcode}, needs to access the info table of the closure to figure out what part of the payload is a pointer to another heap object. For every referenced object, an application thunk is created which applies \li-deepDup- (or rather the variant \li!deepDupFun! with the better suited type \li!a -> a!), unless we are about to \li-deepDup- a \li-deepDup- thunk. In that case, we just copy it, but leave the argument alone, reflecting the use of $\ufv$ instead of $\fv$ in the Rule \sRule{Deep} in the formal semantics. The code listing does not include a few shortcuts, e.g.\ data constructors without pointer arguments such as integer values are not copied.
+As discussed in Section \ref{sec:deepdup}, this simple approach is not always sufficient, and we want a recursive variant, \li-deepDup-. This function, shown in Figure \ref{fig:deepdupcode}, needs to access the info table of the closure to figure out what part of the payload is a pointer to another heap object. For every referenced object, an application thunk is created which applies \li-deepDup- (or rather the variant \li!deepDupFun! with the better suited type \li!a -> a!), unless we are about to \li-deepDup- a \li-deepDup- thunk. In that case, we just copy it, but leave the argument alone, reflecting the use of $\ufv e$ instead of $\fv e$ in the Rule \sRule{Deep} in the formal semantics. The code listing does not include a few shortcuts, e.g.\ data constructors without pointer arguments such as integer values are not copied.
 
 \begin{figure}
 \begin{cmm}
@@ -1204,7 +1204,7 @@ deepDupClosure {
         p = p + 1;
 	goto for1;
     }
-    // Do not stack \textup{deepDup} thunks
+    // Do not wrap \textup{deepDup} thunks again
     if (W_[copy] == stg_ap_2_upd_info &&
         W_[copy + WDS(1)] == Dup_deepDupFun_closure) {
        goto done;
