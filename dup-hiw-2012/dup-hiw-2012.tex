@@ -134,9 +134,9 @@ let l = [1..100000000]
     f xs = last xs + head xs
 in  f l
 \end{haskell}
-This program is space-leaky and will quickly run out of memory. If we substitute the term for \li-xs- in the body of \li-f- and evaluate that expression, it runs quickly and in constant memory. We have avoided the sharing of \li-xs- between the calls to \li-last- and \li-head- and the list elements can be garbage collected as soon as they have been consumed by \li-last-.
+This program is space-leaky and will quickly run out of memory. If we substitute the term for \li-xs- in the body of \li-f- and evaluate that expression, it runs quickly and in constant memory. We have avoided the sharing of \li-xs- between the calls to \li-last- and \li-head- and the list elements can be garbage collected as soon as they have been consumed by \li-last-. This came at the expense of evaluating the list twice, which is fine, as the list is \emph{large} but \emph{cheap to calculate}.
 
-But this source transformation, as well as other source transformations to avoid sharing (see Section \ref{sec:unit} and \ref{sec:church}), is not always possible or desirable, e.g.\  when the parameter passed to \li-f- comes from library code not under the control of the programmer. For this case, we propose a new primitive operation \li-dup- which copies a (possibly unevaluated) value on the heap.
+But this source transformation, as well as other source transformations to avoid sharing (see Section \ref{sec:unit} and \ref{sec:church}), is not always possible or desirable, e.g.\  when the parameter passed to \li-f- comes from library code not under the control of the programmer. Therefore, we propose a new primitive operation \li-dup- which copies a (possibly unevaluated) value on the heap.
 \begin{haskell}
 data Box a = Box a
 dup :: a -> Box a
@@ -148,11 +148,11 @@ let f xs = case dup xs of
     l = [1..100000000]
 in  f l
 \end{haskell}
-In Section \ref{sec:unsharing}, we demonstrate the use of \li-dup- and the other approaches on the more elaborate example introduced in Section \ref{sec:example}, taking on the programmer’s point of view.
+In Section \ref{sec:unsharing}, we demonstrate the use of \li-dup- and other approaches on the more elaborate example introduced in Section \ref{sec:example}, taking on the programmer’s point of view.
 
 An sharp-witted reader with knowledge of a typical implementation of a Haskell runtime might already have noticed that just copying the object on the heap representing the parameter \li-xs- might not be enough: If, for example, the first cons-cell of \li-xs- is already evaluated, then \li-dup xs- will copy that cell, but the thunk representing the tail of the list will still be shared between \li-xs'- and \li-xs-, and \li-f- will again devour memory. Such things may occur without the programmer’s knowledge, e.g.\ during a compiler optimization pass.
 
-To that end, we propose a variant of \li-dup-, called \li-deepDup-, which not only copies its parameter, but also replaces every reference to other objects in the parameter by calls to \li-deepDup-. These calls are -- as one would expect for anything related to Haskell -- lazy and only copy the referenced object if and when it is needed. In other words: After having evaluated a function which only works on a \li-deepDup-’ed copy of its parameters, nothing this evaluation has created on the heap is referenced anymore, unless it is referenced by the function's return value (this is formalized in Theorem \ref{thm:deepdup}).
+To that end, we propose a variant of \li-dup-, called \li-deepDup-, which effectively copies the complete heap referenced by its argument. This happens -- as one would expect for anything related to Haskell -- lazily: The objects referenced  by the parameter are copied if and when they are needed. In other words: After having evaluated a function which only works on \li-deepDup-’ed copies of its parameters, nothing this evaluation has created on the heap is referenced anymore, unless it is referenced by the function's return value (this is formalized in Theorem \ref{thm:deepdup}).
 
 Our specific contributions are:
 \begin{itemize}
@@ -681,7 +681,6 @@ rateDup d t = case dup t of Box t' -> rate d t'
 
 Both the runtime and the memory footprint of the program are greatly reduced compared to the original program: It uses \stats{stats:RateDup:Shared:mem}~MB of memory and \stats{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason is that with \li-rate- wrapped in \li-dup-, the first child of the node under inspection of \li-solve- can be freed already when its next child is evaluated by \li-rate- (Figure~\ref{fig:evaluation}, last row, second-to-last column), so the copying garbage collector needs to do even less work.
 
-\subsection{Using deepDup}
 \begin{figure*}
 \centering
 \input{statstable-slow}
@@ -690,6 +689,7 @@ Both the runtime and the memory footprint of the program are greatly reduced com
 \end{figure*}
 
 
+\subsection{Using deepDup}
 \label{sec:deepdup}
 Using \li-dup- is a fragile business and requires the programmer to have a very good idea about what is happening at runtime. The approach above is fragile and will fail, for example, in two common situations: If the call to \li-solveDup- in \li-main- in Figure \ref{fig:ex} would not just pass the tree \li-t- but rather an expression referencing \li-t-, e.g.
 \begin{haskell}
@@ -794,7 +794,7 @@ Obviously, avoiding sharing is a bad idea when the result is expensive to create
 
 On the other hand, if the memory footprint becomes larger than the available memory, being able to run the program slowly is still better than not being able to run it at all, so even in this case there can be uses for \li-dup- and \li-deepDup-.
 
-\pagebreak[4]
+\pagebreak[3]
 \section{A natural semantics}
 \label{sec:semantics}
 
@@ -1238,19 +1238,11 @@ Our implementation is but a prototype; it does not yet work in all situations. O
 
 It should be possible for \li-dup- to support static thunks with some additional information in the compiled code.  Currently, when execution enters a static thunk and the stack and heap checks have been passed, the thunk is replaced by an indirection into the heap and an update frame is pushed on the stack. If there was a way to jump over the code that sets up the indirection and update frame, e.g.\ via an alternative entry point included in the info table, \li-dup- could create a thunk on the heap that calls the static thunk via this route, effectively kicking off evaluation without affecting the original static thunk.  For \li-deepDup- things are more complicated, as references to static objects are not part of the heap object, but are scattered throughout the machine code. Moving these references to the heap would solve the issue here at hand, but is clearly too expensive.
 
-Also, the prototype does not take multithreaded programs into account and will likely produce bad results when used in such an environment, e.g.\ when another thread replaces a thunk by an indirection during the thread copy loop in \ci-dupClosure-. Similarly, there are several specialized closure type (arrays, mutable references, weak pointers and others \citep[page HeapObjects]{commentary}). For each of them, we would need to determine whether they can be safely duplicated and if so, whether this is actually useful.
+Also, the prototype does not take multithreaded programs into account and will likely produce bad results when used in such an environment, e.g.\ when another thread replaces a thunk by an indirection during the thread copy loop in \ci-dupClosure-. Similarly, there are several specialized closure type (arrays, mutable references, weak pointers\citep{weakpointers} and others \citep[page HeapObjects]{commentary}). For each of them, we would need to determine whether they can be safely duplicated and if so, whether this is actually useful.
+
+In the presence of Lazy IO, duplicating thunks can be outright dangerous: Not only can the original and the duplicated thunk evaluate to different values but can make the program crash, e.g.\ when one copy is done evaluating and causes a file to be closed, while the second copy continues to read from it. Generally everything implemented with \li-unsafePerformIO- is likely to behave badly when combined with \li-dup- or \li-deepDup-.
 
 Function closures need special treatment as there are cases where code assumes a certain reference to always be a function closure and never a thunk that will evaluate to a function. But this is what \li-deepDup- wants to create. Currently, \li-deepDup- will in this case leave the reference as it is. A solution would be to copy the function closure eagerly, so that the reference in the copy again points to a function closure. This would require more sophisticated code to detect cycles. 
-
-The programmer might, by accident, try to use \li-deepDup- in a recursive fashion, so that with each recursion, one new layer of \li-deepDup- thunks is wrapped around the arguments:
-\begin{haskell}
-solve :: Tree -> [S]
-solve t = case deepDup t of
-    Box (Node n ts) -> n : solve picked
-  where
-  ...
-\end{haskell}
-To avoid this, \li-deepDup- would have to detect the thunks it creates (their info table is \ci-stg_ap_2_upd_info- and the first payload argument points to \li-Dup_deepDupFun_closure-) and instead of wrapping the thunk, it could copy it.
 
 \section{Conclusions and further work}
 
