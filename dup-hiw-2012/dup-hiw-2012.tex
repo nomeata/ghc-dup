@@ -788,7 +788,9 @@ The church encoding pattern shows good and predictable memory performance, but e
 
 Our primitives come with very small overhead when applied to data that is actually unshared, as we show in the first column. In fact, careful use of \li-dup- can improve performance noticeably even if only small pieces of data can be un-shared and thus freed quickly. While \li-dup- is subtle to use, \li-deepDup- is robust and its effect is more precisely defined, as shown in the next section.
 
-Obviously, avoiding sharing is a bad idea when the result is expensive to create. Figure~\ref{fig:statsexpensive} runs the same benchmark with an expensive (but otherwise equal) \li-succs- function. If the tree needs to be processed twice, then throwing the result away after the first rune (as done in the last column) results in a serious loss of run-time performance. On the other hand, if the memory footprint becomes large than the available memory, being able to run the program slowly is still better than not being able to run it at all, so even in this case there can be uses for \li-dup- and \li-deepDup-.
+Obviously, avoiding sharing is a bad idea when the result is expensive to create. Figure~\ref{fig:statsexpensive} runs the same benchmark with an expensive (but otherwise equal) \li-succs- function. If the tree needs to be processed twice, then throwing the result away after the first run (as done in the last column) results in a serious loss of run-time performance. Also for the same reason that the \li-rateDup- and unit lifting variants were faster before they now slow down the program, as parts of the tree are evaluated twice.
+
+On the other hand, if the memory footprint becomes larger than the available memory, being able to run the program slowly is still better than not being able to run it at all, so even in this case there can be uses for \li-dup- and \li-deepDup-.
 
 \section{A natural semantics}
 \label{sec:semantics}
@@ -955,7 +957,7 @@ The second part follows from (ii) and from $\fresh x$ being fresh:
 Let \mbox{$\Gamma'$} denote the heap in the assumption of the rule, i.e. $\Gamma, x\mapsto e, \fresh x\mapsto \hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n],\allowbreak \fresh y_1 \mapsto \sDeepDup {y_1},\ldots,\allowbreak\fresh y_n \mapsto \sDeepDup {y_n}$.
 By induction, we know (i) $\dsem{\fresh x}{\esem{\Gamma'} \rho} = \dsem{z}{\esem \Delta \rho}$ and (ii) $\esem{\Gamma'} \rho \le \esem \Delta \rho$.
 
-The newly introduced variables $\fresh y_1$, $i=1,\ldots,n$, have the same semantics as their original counterparts:
+The newly introduced variables $\fresh y_i$, $i=1,\ldots,n$, have the same semantics as their original counterparts:
 \[
 \dsem{\fresh y_i}{\esem{\Gamma'}\rho}
 %= \esem{\Gamma'}\rho\ y_i
@@ -992,7 +994,7 @@ with $\fv{e'} \subseteq \{x_1',\ldots,x_n'\}$. If $\sred \Gamma e \Delta z$ and 
 \end{theorem}
 This implies that any value on the heap $\Delta$ that was created during the evaluation of $e$ can be freed afterwards.
 
-The theorem is an immediate consequence of statement (a) of the following Lemma~\ref{lem:deepdup}, with $\Gamma_0 = \Gamma$, for which we need the notion the unguarded reachable set $\ur{\Gamma}{e}$ of an expression $e$ in a context $\Gamma$, which is mutually defined for all expressions as the smallest sets which fulfill the equation
+The theorem is an immediate consequence of statement (a) of the following Lemma~\ref{lem:deepdup}, with $\Gamma_0 = \Gamma$. We will need the notion of the unguarded reachable set $\ur{\Gamma}{e}$ of an expression $e$ in a context $\Gamma$, which is mutually defined for all expressions as the smallest sets which fulfill the equation
 \[
 \ur{\Gamma}{e} = \ufv e \cup \textstyle\bigcup_{x\in \ufv e}\ur{\Gamma}{\Gamma\ x}.
 \]
