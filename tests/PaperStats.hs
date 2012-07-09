@@ -116,6 +116,10 @@ solveRateDup (Node n ts) = n :
 solveRateRecDup (Node n ts) = n :
     solveRateRecDup (fst (maximumBy (comparing snd) [ (t, rateRecDup depth t) | t <- ts ]))
 
+solveDeepDupRateDup t = case deepDup t of Box t -> go t
+    where go (Node n ts) = n :
+            go (fst (maximumBy (comparing snd) [ (t, rateDup depth t) | t <- ts ]))
+
 rateDup d t = case dup t of Box t2 -> rate d t2
 {-# NOINLINE rateDup #-}
 
@@ -159,6 +163,7 @@ data RunDesc = Original
 	| RateDup 
 	| RateRecDup 
 	| SolveDeepDup 
+	| SolveDeepDupRateDup
 	| Unit 
 	| Church
     deriving (Show, Read, Eq)
@@ -177,7 +182,9 @@ runs = [
     ((False,Original), regularSolver solve),
     ((False,SolveDup), regularSolver solveDup),
     ((False,RateDup), regularSolver solveRateDup),
+--    ((False,RateRecDup), regularSolver solveRateRecDup),
     ((False,SolveDeepDup), regularSolver solveDeepDup),
+--    ((False,SolveDeepDupRateDup), regularSolver solveDeepDupRateDup),
     ((False,Unit), Run
         utree
         (\t -> return $! usolve t !! 10000)
@@ -195,6 +202,7 @@ runs = [
     ((True,Original), regularSolverSlow solve),
     ((True,SolveDup), regularSolverSlow solveDup),
     ((True,RateDup), regularSolverSlow solveRateDup),
+--    ((True,RateRecDup), regularSolver solveRateRecDup),
     ((True,SolveDeepDup), regularSolverSlow solveDeepDup),
     ((True,Unit), Run
         utreeSlow
