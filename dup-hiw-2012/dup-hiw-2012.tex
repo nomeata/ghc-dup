@@ -682,6 +682,13 @@ rateDup d t = case dup t of Box t' -> rate d t'
 Both the runtime and the memory footprint of the program are greatly reduced compared to the original program: It uses \stats{stats:RateDup:Shared:mem}~MB of memory and \stats{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason is that with \li-rate- wrapped in \li-dup-, the first child of the node under inspection of \li-solve- can be freed already when its next child is evaluated by \li-rate- (Figure~\ref{fig:evaluation}, last row, second-to-last column), so the copying garbage collector needs to do even less work.
 
 \subsection{Using deepDup}
+\begin{figure*}
+\centering
+\input{statstable-slow}
+\caption{Time and space performance for $b=4$ and $d=4$ using an expensive \li-succs- function.}
+\label{fig:statsexpensive}
+\end{figure*}
+
 
 \label{sec:deepdup}
 Using \li-dup- is a fragile business and requires the programmer to have a very good idea about what is happening at runtime. The approach above is fragile and will fail, for example, in two common situations: If the call to \li-solveDup- in \li-main- in Figure \ref{fig:ex} would not just pass the tree \li-t- but rather an expression referencing \li-t-, e.g.
@@ -706,6 +713,7 @@ Using \li-deepDup- is therefore more reliable and easier to handle: The programm
 
 %\section{Other approaches to unsharing}
 %\label{sec:sourcetrans}
+
 
 \subsection{The unit type argument pattern}
 
@@ -772,13 +780,7 @@ csolve t = fst (t csolve')
 This additional complexity might make this approach impractical in larger settings.
 Note, though, that applying this pattern to the list data type turns a list into its right fold and can enable deforestation\citep{deforestation}.
 
-\begin{figure*}
-\centering
-\input{statstable-slow}
-\caption{Time and space performance for $b=4$ and $d=4$ and an expensive \li-succs- function.}
-\label{fig:statsexpensive}
-\end{figure*}
-
+\pagebreak[3]
 \subsection{Comparison and interpretation}
 
 As we can see from the statistics in Figure \ref{fig:stats}, the unit type argument pattern is the clear winner in both runtime and space performance. It is ahead of \li-rateDup- for the same reason that made \li-rateDup- faster than \li-solveDup-: Now even the subtrees in recursive calls of \li-rate- are freed immediately.
@@ -792,6 +794,7 @@ Obviously, avoiding sharing is a bad idea when the result is expensive to create
 
 On the other hand, if the memory footprint becomes larger than the available memory, being able to run the program slowly is still better than not being able to run it at all, so even in this case there can be uses for \li-dup- and \li-deepDup-.
 
+\pagebreak[4]
 \section{A natural semantics}
 \label{sec:semantics}
 
@@ -819,7 +822,9 @@ We extend Launchbury’s semantics for normalized lambda calculus with our two p
 \newcommand{\dom}[1]{\text{dom}\,#1}
 \newcommand{\fresh}[1]{#1'}
 \begin{alignat*}{2}
-x,y &\in \sVar \\
+x,y &\in \sVar
+\displaybreak[1]
+\\
 e &\in
 \sExp &&\Coloneqq
 \begin{aligned}[t]&
@@ -830,8 +835,10 @@ e &\in
 \sLet {x_1 = e_1,\ldots,x_n = e_n} e \mid
 \\&
 \sDup x \mid \sDeepDup x
-\end{aligned}\\
-\Gamma, \Delta, \Theta &\in \sHeap &&= \sVar \pfun \sExp \\
+\end{aligned}
+\displaybreak[1]\\
+\Gamma, \Delta, \Theta &\in \sHeap &&= \sVar \pfun \sExp
+\displaybreak[1]\\
 z &\in \sVal &&\Coloneqq \sLam x e
 \end{alignat*}
 His lambda terms are normalized, i.e.\ all bound variables are distinct and all applications are applications of an expression to a variable.
@@ -968,6 +975,7 @@ The newly introduced variables $\fresh y_i$, $i=1,\ldots,n$, have the same seman
 = \dsem{y_i}{\esem{\Gamma, x\mapsto e}\rho}.
 \]
 This implies (iii) $\dsem{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]}{\esem{\Gamma'}\rho} = \dsem{e}{\esem{\Gamma, x\mapsto e}\rho}$. Hence
+{\allowdisplaybreaks[1]
 \begin{align*}
 &\phantom{{}={}}\dsem{\sDeepDup x}{\esem{\Gamma, x\mapsto e}\rho}\\
 &= \dsem{x}{\esem{\Gamma, x\mapsto e}\rho}\\
@@ -976,6 +984,7 @@ This implies (iii) $\dsem{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]}{\esem{\G
 &= \dsem{\fresh x}{\esem{\Gamma'}\rho}\\
 &= \dsem{z}{\esem \Delta \rho} &&\text{by (i)}
 \end{align*}
+}
 and, by (ii),
 \begin{align*}
 \esem{\Gamma, x\mapsto e}\rho \le \esem{\Gamma'} \rho \le \esem{\Delta}\rho.
@@ -1031,8 +1040,8 @@ Let $y\in \dom\Gamma_0$ with $U\cap \ur{\Gamma,x\mapsto e}y=\emptyset$. As $\ur\
 For brevity, let $\Gamma' = \Gamma,x_1\mapsto e_1,\ldots,x_n\mapsto e_n$ and $e_{l} = \sLet {x_1=e_1,\ldots,x_n=e_n}e$.
 Clearly $\Gamma_0 \subseteq \Gamma \subseteq \Gamma'$.
 Also, for each $e_* \in \{e,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \ufv{e_l} \cup \{x_1,\ldots,x_n\}$. This implies 
+{\allowdisplaybreaks[1]
 \begin{align*}
-\allowdisplaybreaks[3]
 \ur{\Gamma'}e
 &= \ufv e \cup \textstyle\bigcup_{x\in \ufv e}\ur{\Gamma'}{\Gamma'\ x} \\
 &\subseteq 
@@ -1040,21 +1049,22 @@ Also, for each $e_* \in \{e,e_1,\ldots,e_n\}$ we have $\ufv{e_*} \subseteq \ufv{
 \ufv {e_l} &\cup \{x_1,\ldots,x_n\}\\
 &\cup \textstyle\bigcup_{x\in \ufv {e_l}}\ur{\Gamma'}{\Gamma'\ x} \\
 &\cup \ur{\Gamma'}{\Gamma'\ x_1} \cup \cdots \cup \ur{\Gamma'}{\Gamma'\ x_n}
-\end{aligned}\displaybreak[3]\\
+\end{aligned}\\
 &=
 \begin{aligned}[t]
 \ufv {e_l} &\cup \{x_1,\ldots,x_n\}\\
 &\cup \textstyle\bigcup_{x\in \ufv {e_l}}\ur{\Gamma'}{\Gamma'\ x}\\
 &\cup \ur{\Gamma'}{e_1} \cup \cdots \cup \ur{\Gamma'}{e_n}
-\end{aligned}\displaybreak[3]\\
+\end{aligned}\\
 &= 
 \begin{aligned}[t]
 \ufv {e_l} &\cup \{x_1,\ldots,x_n\} \\
 &\cup \textstyle\bigcup_{x\in \ufv {e_l}}\ur{\Gamma'}{\Gamma'\ x}
-\end{aligned}\displaybreak[3]\\
+\end{aligned}\\
 &= \ur{\Gamma'} {e_l} \cup \{x_1,\ldots,x_n\}\\
 &= \ur{\Gamma} {e_l} \cup \{x_1,\ldots,x_n\}.
 \end{align*}
+}
 As all bound variables are distinct from variables in the heap, no $x_i\in U$. From $U\cap \ur\Gamma {e_l}
 = \emptyset$, we have $U \cap \ur {\Gamma'} e = \emptyset$ and statements (a) and (b) follow from the induction hypothesis.
 
@@ -1075,6 +1085,7 @@ Statement (c) follows immediately as $\fresh x$ is fresh.
 \case{$\sDeepDup x$}
 Let $\Gamma'$ denote the heap $\Gamma, x\mapsto e, \fresh x\mapsto \hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n],\allowbreak \fresh y_1 \mapsto \sDeepDup y_1,\allowbreak \ldots,\allowbreak \fresh y_1 \mapsto \sDeepDup y_1$.
 Recall that, by definition, $\ufv {\sDeepDup x}=\emptyset$, hence $\ur{\Gamma'}{\sDeepDup x} = \emptyset$. So
+{\allowdisplaybreaks[1]
 \begin{align*}
 \ur{\Gamma'}{\fresh x}
 &= \{\fresh x\} \cup \ur{\Gamma'}{\hat e[\fresh y_1/y_1,\ldots,\fresh y_n/y_n]} \\
@@ -1095,6 +1106,7 @@ Recall that, by definition, $\ufv {\sDeepDup x}=\emptyset$, hence $\ur{\Gamma'}{
 \end{aligned}\\
 &= \{\fresh x\} \cup \{\fresh y_1,\ldots, \fresh y_n\}
 \end{align*}
+}
 and, as these are all fresh variables, $U \cap \ur{\Gamma'}{\fresh x} = \emptyset$. Clearly, $\Gamma_0 \subseteq (\Gamma, x\mapsto e) \subseteq \Gamma'$, so the  first statement follows from the induction hypothesis.
 
 Statement (c) follows immediately as the additional variables are fresh.
@@ -1109,18 +1121,7 @@ Our implementation\footnote{Available at \url{http://darcs.nomeata.de/ghc-dup}} 
 
 GHC compiles Haskell code first to a polymorphic, explicitly typed lambda-calculus called \emph{Core} \citep{core,system-fc}, then to the \emph{Spineless Tagless G-machine} (STG) \citep{stg}. From there, it generates \emph{Cmm} code, an implementation of the portable assembly language C-{}- which is then compiled to machine code, either directly or via LLVM.
 
-Our work looks at objects in the sense of the STG, so we only need to worry about data representation on the heap \citep{stg}. Questions about the earlier transformations,  such as the evaluation model \cite{evalapply}, are thus not important here.
-
-The common layout of all objects, or closures,  on the heap is a pointer to a statically allocated \emph{info table}, followed by the payload (Figure \ref{fig:heap}). The info table indicates the type of the object (not to be confused with the type from the type system – these are completely irrelevant at this stage), contains layout information about the payload required by the garbage collector, namely what words are pointers to other objects and what words are not, and the code to be run when the object is evaluated.
-
-There are various types of objects on the heap, most important are:
-\begin{itemize}
-\item \emph{Data constructors}, representing fully evaluated values. The payload are pointers to the parameters of the constructor.
-\item \emph{Function closures}, representing functions. Locally defined functions capture their free variables, these are stored in the payload.
-\item \emph{Thunks}, which are unevaluated expressions. Again, the payload contains references to their free variables.
-\item \emph{Applications} of a function to a number of arguments. This closure type is usually only used by the GHC interpreter, but we use it in the implementation of \li-deepDup-.
-\item \emph{Indirections}, which point to another object on the heap in their payload. These are created during evaluation and removed by the garbage collector.
-\end{itemize}
+Our work looks at objects in the sense of the STG, so we only need to worry about data representation on the heap \citep{stg}. Design decisions regarding the earlier transformations, such as the evaluation model \cite{evalapply}, are thus not important here.
 
 \def\ux{2.2cm}\def\uy{0.6cm}
 \begin{figure}
@@ -1144,6 +1145,18 @@ There are various types of objects on the heap, most important are:
 \caption{The common layout of heap objects}
 \label{fig:heap}
 \end{figure}
+
+The common layout of all objects, or closures,  on the heap is a pointer to a statically allocated \emph{info table}, followed by the payload (Figure \ref{fig:heap}). The info table indicates the type of the object (not to be confused with the type from the type system – these are completely irrelevant at this stage), contains layout information about the payload required by the garbage collector, namely what words are pointers to other objects and what words are not, and the code to be run when the object is evaluated.
+
+There are various types of objects on the heap, most important are:
+\begin{itemize}
+\item \emph{Data constructors}, representing fully evaluated values. The payload are pointers to the parameters of the constructor.
+\item \emph{Function closures}, representing functions. Locally defined functions capture their free variables, these are stored in the payload.
+\item \emph{Thunks}, which are unevaluated expressions. Again, the payload contains references to their free variables.
+\item \emph{Applications} of a function to a number of arguments. This closure type is usually only used by the GHC interpreter, but we use it in the implementation of \li-deepDup-.
+\item \emph{Indirections}, which point to another object on the heap in their payload. These are created during evaluation and removed by the garbage collector.
+\end{itemize}
+
 
 When a thunk is evaluated, it is replaced by an indirection which points to the result of the evaluation, which can be a data constructor or a function closure. This way, when another reference to the thunk is evaluated, the computation is not repeated but the calculated result is used directly, hence the result is \emph{shared}. The indirections do not stay around forever: The next garbage collector run, which copies all live data, will replace references to indirections by whatever the indirection points to.
 
