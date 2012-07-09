@@ -693,7 +693,7 @@ then \li-dup- will only copy this unevaluated expression, but both copies will r
 The same effect occurs if the tree is already partly evaluated. This may even be caused by a compiler transformation, e.g.\ the wrapper/worker transformation, assuming that \li-doSomethingElseWith- is strict  in its argument \citep{unboxed}. Then, the parameter \li-t- is the \li-Node- constructor referencing other nodes or unevaluated trees, and copying the constructor does not help to prevent sharing the referenced data, as shown in the first row of Figure \ref{fig:deepevaluation}.
 
 This is where \li-deepDup- comes in:
-Intuitively, \li-deepDup- takes a complete and private copy of the entire heap rechable from its argument, hence preventing any unwanted evaluation outside this copy. Effectively, this is done lazily: It will just copy the object specified by its parameter, and change all references therein so that before they are evaluated, \li-deepDup- copies them.
+Intuitively, \li-deepDup- takes a complete and private copy of the entire heap reachable from its argument, hence preventing any unwanted evaluation outside this copy. Effectively, this is done lazily: It will just copy the object specified by its parameter, and change all references therein so that before they are evaluated, \li-deepDup- copies them.
 
 So by wrapping \li-solve- in a call to \li-deepDup-:
 \begin{haskell}
@@ -909,7 +909,7 @@ The semantics of a heap $\Gamma$ is given by $\esem \Gamma \rho$, which is the e
 \esem{ x_1\mapsto e_1,\ldots,x_n\mapsto e_n}\rho \\
 = \mu \rho'. \rho \sqcup (x_1 \mapsto \dsem{e_1}{\rho'}) \sqcup \cdots \sqcup (x_n \mapsto \dsem{e_n}{\rho'})
 \end{multline*}
-This definition maks sense on environments $\rho$ that are consistent with $\Gamma$, i.e.\ if $\rho$ and $\Gamma$ bind the same variable, then they are bound to values for which an upper bound exists.
+This definition makes sense on environments $\rho$ that are consistent with $\Gamma$, i.e.\ if $\rho$ and $\Gamma$ bind the same variable, then they are bound to values for which an upper bound exists.
 
 Launchbury proves his natural semantics to be correct with respect to the denotational semantics. 
 Naturally, we want to preserve this property. Our new primitives should be invisible to the denotational semantics, hence we extend the semantics function as follows:
