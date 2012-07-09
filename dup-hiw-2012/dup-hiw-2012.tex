@@ -659,8 +659,8 @@ We want to improve the space performance of the program in the example and thus,
 \item a shared, unevaluated tree as shown in Figure \ref{fig:ex},
 \item a shared, unevaluated tree wrapped in another thunk, by passing \li-(fstChild t)- to \li-solve-,
 \item a shared tree that has been partly evaluated forcing \li-seq (fstChild t)- before passing \li-t- to the solver,
-\item a shared tree that has been fully evaluated tree by solving the problem twice in a row and
-\item a shared, unevaluated tree that is processed twice by the solver.
+\item a shared tree that has been fully evaluated by the unmodified solver before,
+\item a shared, unevaluated tree that is processed twice by the (possibly modified) solver.
 \end{itemize}
 In the two variants based on refactoring, the data type used for the tree does not allow for partial or full evaluation, so these runs are omitted.
 
@@ -679,7 +679,7 @@ As this is the function whose return value is taken into account when deciding w
 rateDup d t = case dup t of Box t' -> rate d t'
 \end{haskell}
 
-Both the runtime and the memory footprint of the program are greatly reduced compared to the original program: It uses \stats{stats:RateDup:Shared:mem}~MB of memory and \stats{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason is that with \li-rate- wrapped in \li-dup-, the first child of the node under inspection of \li-solve- can be freed already when its next child is evaluated by \li-rate- (Figure~\ref{fig:evaluation}, last row, second-to-last column), so the copying garbage collector needs to do even less work.
+Both the runtime and the memory footprint of the program are greatly reduced compared to the original program: It uses \stats{stats:RateDup:Shared:mem}~MB of memory and takes \stats{stats:RateDup:Shared:time} seconds to finish. It is surprising that this even surpasses the speed of the original program without sharing. The reason is that with \li-rate- wrapped in \li-dup-, the first child of the node under inspection of \li-solve- can be freed already when its next child is evaluated by \li-rate- (Figure~\ref{fig:evaluation}, last row, second-to-last column), so the copying garbage collector needs to do even less work.
 
 \begin{figure*}
 \centering
@@ -691,7 +691,7 @@ Both the runtime and the memory footprint of the program are greatly reduced com
 
 \subsection{Using deepDup}
 \label{sec:deepdup}
-Using \li-dup- is a fragile business and requires the programmer to have a very good idea about what is happening at runtime. The approach above is fragile and will fail, for example, in two common situations: If the call to \li-solveDup- in \li-main- in Figure \ref{fig:ex} would not just pass the tree \li-t- but rather an expression referencing \li-t-, e.g.
+Using \li-dup- is a fragile business and requires the programmer to have a very good idea about what is happening at runtime. It will fail, for example, in two common situations: If the call to \li-solveDup- in \li-main- in Figure \ref{fig:ex} would not just pass the tree \li-t- but rather an expression referencing \li-t-, e.g.
 \begin{haskell}
 print $ solveDup (fstChild t) !! 1000
 \end{haskell}
@@ -700,7 +700,7 @@ then \li-dup- will only copy this unevaluated expression, but both copies will r
 The same effect occurs if the tree is already partly evaluated. This may even be caused by a compiler transformation, e.g.\ the wrapper/worker transformation, assuming that \li-doSomethingElseWith- is strict  in its argument \citep{unboxed}. Then, the parameter \li-t- is the \li-Node- constructor referencing other nodes or unevaluated trees, and copying the constructor does not help to prevent sharing the referenced data, as shown in the first row of Figure \ref{fig:deepevaluation}.
 
 This is where \li-deepDup- comes in:
-Intuitively, \li-deepDup- takes a complete and private copy of the entire heap reachable from its argument, hence preventing any unwanted evaluation outside this copy. Effectively, this is done lazily: It will just copy the object specified by its parameter, and change all references therein so that before they are evaluated, \li-deepDup- copies them.
+Intuitively, \li-deepDup- takes a complete and private copy of the entire heap reachable from its argument, hence preventing any unwanted evaluation outside this copy. In fact this is done lazily: It will just copy the object specified by its parameter, and change all references therein so that before they are evaluated, \li-deepDup- copies them.
 
 So by wrapping \li-solve- in a call to \li-deepDup-:
 \begin{haskell}
@@ -721,7 +721,7 @@ The problem at hand is, of course, not new, and Haskell programmers have solved 
 
 \label{sec:unit}
 
-A common approach is to replace values that you do not want to be shared by functions, e.g.\ by wrapping a bound expression \li-let x = e- into a lambda expression \li!let x = \() -> e!. At every point in the program where \li-e- is required, one can get the value of it using \li-x ()-; there will be no sharing between different calls to \li-x ()-
+A common approach is to replace values that you do not want to be shared by functions, e.g.\ by turning a bound expression \li-let x = e- into a lambda expression \li!let x = \() -> e!. At every point in the program where \li-e- is required, one can get the value of it using \li-x ()-; there will be no sharing between different calls to \li-x ()-
 
 One needs to be careful, though, as some compiler optimizations can introduce unwanted sharing again. The code
 \begin{haskell}
@@ -735,7 +735,7 @@ main = do
 works as expected without optimization. Passing  \ci!-O! to GHC results in sharing again, as a result of the full laziness transformation. In fact, in a discussion of this example on the GHC bug tracker \citep{spaceleakbug}, Claus Reinke suggests an operation like \li-dup- to solve this.%
 % http://hackage.haskell.org/trac/ghc/ticket/917
 \footnote{
-If, however, the type signature of \li-xs- is not given, then no unwanted sharing happens even with \ci!-O!. The inferred, most general type of \li-xs- is polymorphic with type class constraints. This implies that additional parameters are being passed under the hood and they successfully prevent sharing.
+If, however, the type signature of \li-xs- is not given, then no unwanted sharing happens even with \ci!-O!. The inferred most general type of \li-xs- is polymorphic with type class constraints. This implies that additional parameters are being passed under the hood and they successfully prevent sharing.
 }
 
 Applying this pattern to our problem, and aiming for a tree with unshareable subtrees, we can define the following types:
@@ -778,7 +778,7 @@ csolve t = fst (t csolve')
     
 \end{haskell}
 This additional complexity might make this approach impractical in larger settings.
-Note, though, that applying this pattern to the list data type turns a list into its right fold and can enable deforestation\citep{deforestation}.
+Note, though, that applying this pattern to the list data type turns a list into its right fold and can enable deforestation \citep{deforestation}.
 
 \pagebreak[3]
 \subsection{Comparison and interpretation}
@@ -809,7 +809,7 @@ We extend Launchbury’s semantics for normalized lambda calculus with our two p
 \newcommand{\sVal}{\text{Val}}
 \newcommand{\sValue}{\text{Value}}
 \newcommand{\sEnv}{\text{Env}}
-\newcommand{\sApp}[2]{#1\ #2}
+\newcommand{\sApp}[2]{\operatorname{#1}#2}
 \newcommand{\sLam}[2]{\text{\textlambda} #1.\, #2}
 \newcommand{\sDup}[1]{\sApp \mdup #1}
 \newcommand{\sDeepDup}[1]{\sApp \mdeepDup #1}
@@ -843,14 +843,14 @@ z &\in \sVal &&\Coloneqq \sLam x e
 \end{alignat*}
 His lambda terms are normalized, i.e.\ all bound variables are distinct and all applications are applications of an expression to a variable.
 
-The set of free variables of an expression $e$ is $\fv e$. Similarly, the set of unguarded free variables $\ufv e$ of an expression $e$, is inductively defined inductively just like $\fv e$ with the exception that $\ufv {\sDeepDup x} = \emptyset$. A value $\hat z$ is $z$ with all bound variables renamed to completely fresh variables.
+The set of free variables of an expression $e$ is $\fv e$. Similarly, the set of unguarded free variables $\ufv e$ of an expression $e$, is inductively defined just like $\fv e$ with the exception that $\ufv {\sDeepDup x} = \emptyset$. A value $\hat z$ is $z$ with all bound variables renamed to completely fresh variables.
 
 To avoid having to introduce constructors and case expressions as well we assume $\sDup$ and $\sDeepDup$ to return their result without the wrapping in \li-Box-. This captures the semantics of the Haskell expression\nopagebreak
 \begin{haskell}
 (\x. let Box y = dup x in y) :: a -> a.
 \end{haskell}
 
-In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Var} and \sRule{Let}, we add the two rules \sRule{Dup}  and \sRule{Deep} in Figure~\ref{fig:semrules}. The use of $\ufv$ instead of $\fv$ in the rule \sRule{DeepDup} is required to avoid a livelock if $\sDeepDup x$ is evaluated while $x$ is itself bound to $\sDeepDup y$.
+In addition to the unmodified reduction rules \sRule{Lam}, \sRule{App}, \sRule{Var} and \sRule{Let}, we add the two rules \sRule{Dup}  and \sRule{Deep} in Figure~\ref{fig:semrules}. The use of $\ufv e$ instead of $\fv e$ in the rule \sRule{DeepDup} is required to avoid a livelock if $\sDeepDup x$ is evaluated while $x$ is itself bound to $\sDeepDup y$.
 
 In the following every heap/term pair $\Gamma : e$ is assumed to be distinctly named, i.e.\ every binding occurring in $\Gamma$ and in $e$ binds a distinct variable; this property is preserved by the reduction rules.
 
@@ -1234,13 +1234,13 @@ deepDupClosure {
 \subsection{Limitations of the implementation}
 \label{sec:shortcomings}
 
-Our implementation is but a prototype; it does not yet work in all situations. One large problem are statically allocated thunks: A value, say \li-nats = [0..]-, defined at the module level is compiled to a thunk with closure type \ci-THUNK_STATIC-, also called a constant applicative form (CAF), and receives special treatment by the garbage collector. Copying such a closure to the heap using the code above would make the garbage collector abort, as it does not expect a static thunk to be found on the heap. But it is not possible to change the type of the closure, as the info table containing the type lies directly next to the code. And in order to create a modified info table somewhere else, the code needs to be copied as well. Therefore, \li-dup- and \li-deepDup- currently does not work for static thunks. When it is passed such a thunk, it prints a warning and returns the original reference, retaining sharing.
+Our implementation is but a prototype; it does not yet work in all situations. One large problem is posed by statically allocated thunks: A value, say \li-nats = [0..]-, defined at the module level is compiled to a thunk with closure type \ci-THUNK_STATIC-, also called a constant applicative form (CAF), and receives special treatment by the garbage collector. Copying such a closure to the heap using the code above would make the garbage collector abort, as it does not expect a static thunk to be found on the heap. But it is not possible to change the type of the closure, as the info table containing the type lies directly next to the code. And in order to create a modified info table somewhere else, the code needs to be copied as well. Therefore, \li-dup- and \li-deepDup- currently does not work for static thunks. When it is passed such a thunk, it prints a warning and returns the original reference, retaining sharing.
 
 It should be possible for \li-dup- to support static thunks with some additional information in the compiled code.  Currently, when execution enters a static thunk and the stack and heap checks have been passed, the thunk is replaced by an indirection into the heap and an update frame is pushed on the stack. If there was a way to jump over the code that sets up the indirection and update frame, e.g.\ via an alternative entry point included in the info table, \li-dup- could create a thunk on the heap that calls the static thunk via this route, effectively kicking off evaluation without affecting the original static thunk.  For \li-deepDup- things are more complicated, as references to static objects are not part of the heap object, but are scattered throughout the machine code. Moving these references to the heap would solve the issue here at hand, but is clearly too expensive.
 
-Also, the prototype does not take multithreaded programs into account and will likely produce bad results when used in such an environment, e.g.\ when another thread replaces a thunk by an indirection during the thread copy loop in \ci-dupClosure-. Similarly, there are several specialized closure type (arrays, mutable references, weak pointers\citep{weakpointers} and others \citep[page HeapObjects]{commentary}). For each of them, we would need to determine whether they can be safely duplicated and if so, whether this is actually useful.
+Also, the prototype does not take multithreaded programs into account and will likely produce bad results when used in such an environment, e.g.\ when another thread replaces a thunk by an indirection during the thunk copy loop in \ci-dupClosure-. Similarly, there are several specialized closure type (arrays, mutable references, weak pointers\citep{weakpointers} and others \citep[page HeapObjects]{commentary}). For each of them, we would need to determine whether they can be safely duplicated and if so, whether this is actually useful.
 
-In the presence of Lazy IO, duplicating thunks can be outright dangerous: Not only can the original and the duplicated thunk evaluate to different values but can make the program crash, e.g.\ when one copy is done evaluating and causes a file to be closed, while the second copy continues to read from it. Generally everything implemented with \li-unsafePerformIO- is likely to behave badly when combined with \li-dup- or \li-deepDup-.
+In the presence of Lazy IO, duplicating thunks can be outright dangerous: Not only can the original and the duplicated thunk evaluate to different values but this can make the program crash, e.g.\ when one copy is done evaluating and causes a file to be closed, while the second copy continues to read from it. Generally everything implemented with \li-unsafePerformIO- is prone to behave badly when combined with \li-dup- or \li-deepDup-.
 
 Function closures need special treatment as there are cases where code assumes a certain reference to always be a function closure and never a thunk that will evaluate to a function. But this is what \li-deepDup- wants to create. Currently, \li-deepDup- will in this case leave the reference as it is. A solution would be to copy the function closure eagerly, so that the reference in the copy again points to a function closure. This would require more sophisticated code to detect cycles. 
 
